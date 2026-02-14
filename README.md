@@ -8,14 +8,19 @@ Watusi adheres to the following standards:
 
 - WebAssembly Core Specification 1.0 (Binary and Text formats).
 - WebAssembly Bulk Memory Operations Extension.
+- WebAssembly Fixed-width SIMD Extension.
+- WebAssembly Threads/Atomics Extension.
+- WebAssembly Sign-extension Operators.
+- WebAssembly Nontrapping Float-to-int Conversions.
 - IEEE 754-2019 for floating-point representation.
 
 ## Features
 
 - S-Expression and Flat Syntax: Supports both folded and flat WAT formats.
 - Identifier Resolution: Resolves symbolic identifiers (e.g. $my_func, $my_var) to their numeric indices.
-- Section Support: Type, Import, Function, Table, Memory, Global, Export, Start, Element, Code, Data, and Data Count sections.
-- Bulk Memory Operations: Support for memory.init, data.drop, memory.copy, memory.fill, table.init, elem.drop, and table.copy.
+- Section Support: All core sections plus Custom (name) section.
+- Instruction Support: Comprehensive support for Core 1.0, Bulk Memory, SIMD, and Atomics.
+- Debug Names: Optional support for including identifiers in the binary via the 'name' section.
 - LEB128 Encoding: Uses the leb128 package for efficient integer encoding.
 - Verified Compatibility: Tested against the official wat2wasm tool.
 
@@ -36,6 +41,9 @@ To run the tests, ensure these tools are available in your PATH.
 wat = "(module (func (export \"main\") (result i32) i32.const 42))"
 wasm = Watusi.to_wasm(wat)
 # <<0, 97, 115, 109, 1, 0, 0, 0, ...>>
+
+# Including debug names
+wasm_with_names = Watusi.to_wasm(wat, debug_names: true)
 ```
 
 ## Installation
