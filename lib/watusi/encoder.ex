@@ -89,7 +89,6 @@ defmodule Watusi.Encoder do
     elem_section = encode_section(9, encode_vector(sections.elems, &encode_elem(&1, ctx)))
 
     # Only include Data Count section if there are bulk memory instructions or passive data segments
-    # For now, if any data segment is passive, include it.
     needs_data_count = Enum.any?(sections.data, &passive_data?(&1)) or has_bulk_mem_instr?(sections.funcs)
 
     data_count_section =
@@ -345,14 +344,7 @@ defmodule Watusi.Encoder do
 
   defp build_local_map([{:keyword, "func"} | rest]) do
     params = Enum.flat_map(rest, fn [{:keyword, "param"} | ts] -> Enum.filter(ts, &match?({:id, _}, &1)) |> Enum.map(fn {:id, id} -> id end); _ -> [] end)
-    locals =
-      Enum.flat_map(rest, fn
-        [{:keyword, "local"} | ts] ->
-          Enum.filter(ts, &match?({:id, _}, &1)) |> Enum.map(fn {:id, id} -> id end)
-
-        _ ->
-          []
-      end)
+    locals = Enum.flat_map(rest, fn [{:keyword, "local"} | ts] -> Enum.filter(ts, &match?({:id, _}, &1)) |> Enum.map(fn {:id, id} -> id end); _ -> [] end)
     (params ++ locals) |> Enum.with_index() |> Enum.into(%{}, fn {id, idx} -> {id, idx} end)
   end
 

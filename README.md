@@ -21,7 +21,12 @@ Watusi adheres to the following standards:
 
 ## Testing
 
-The test suite uses `wat2wasm` from the [WebAssembly Binary Toolkit (WABT)](https://github.com/WebAssembly/wabt) as a gold standard for comparison. To run the tests, ensure `wat2wasm` is available in your PATH.
+The test suite uses tools from the [WebAssembly Binary Toolkit (WABT)](https://github.com/WebAssembly/wabt) as a gold standard for correctness:
+
+- `wat2wasm`: Used to verify bit-for-bit parity of the generated binary.
+- `wasm-validate`: Used to ensure the generated binary adheres to the WebAssembly specification.
+
+To run the tests, ensure these tools are available in your PATH.
 
 ## Usage
 

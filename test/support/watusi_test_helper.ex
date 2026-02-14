@@ -5,8 +5,8 @@ defmodule Watusi.TestHelper do
   import ExUnit.Assertions
 
   @doc """
-  Compares Watusi's output for a given WAT string against the official `wat2wasm` tool.
-  Also validates the generated binary using `wasm-validate`.
+  Compares Watusi's output for a given WAT string against the official `wat2wasm` tool
+  and ensures it passes `wasm-validate`.
   """
   def assert_wasm_parity(wat, filename_prefix \\ "test_temp") do
     watusi_wasm = Watusi.to_wasm(wat)
