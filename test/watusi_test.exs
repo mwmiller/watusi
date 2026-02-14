@@ -363,7 +363,18 @@ defmodule WatusiTest do
     assert_wasm_parity(wat)
   end
 
-  for sample <- ["add", "recursion", "itoa", "loops", "select", "stack"] do
+  for sample <- [
+        "add",
+        "recursion",
+        "itoa",
+        "loops",
+        "select",
+        "stack",
+        "isprime",
+        "locals",
+        "memory-basics",
+        "endianflip"
+      ] do
     @sample sample
     test "integration: sample #{@sample}.wat" do
       "test/samples/#{@sample}.wat" |> File.read!() |> assert_wasm_parity(@sample)

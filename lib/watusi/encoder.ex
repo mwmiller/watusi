@@ -43,7 +43,16 @@ defmodule Watusi.Encoder do
     "i32.store16",
     "i64.store8",
     "i64.store16",
-    "i64.store32"
+    "i64.store32",
+    "v128.load",
+    "v128.store"
+  ]
+
+  @simd_ops [
+    "v128.load",
+    "v128.store",
+    "v128.const",
+    "i8x16.swizzle"
   ]
 
   # Guards for instruction categories
@@ -55,6 +64,8 @@ defmodule Watusi.Encoder do
   defguardp is_bulk_mem(name) when name in @bulk_mem_ops
 
   defguardp is_mem_instr(name) when name in @memory_ops
+
+  defguardp is_simd(name) when name in @simd_ops
 
   def encode([[{:keyword, "module"} | body]]) do
     header = <<0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00>>
@@ -144,11 +155,11 @@ defmodule Watusi.Encoder do
   end
 
   defp has_bulk_mem_instr?(funcs) do
-    Enum.any?(funcs, fn [_ | rest] ->
+    Enum.any?(funcs, fn [_head | rest] ->
       instructions = collect_instructions(rest)
 
-      Enum.any?(instructions, fn {:instr, name, _, _} ->
-        name in ["memory.init", "data.drop", "memory.copy", "memory.fill"]
+      Enum.any?(instructions, fn {:instr, name, _args, _labels} ->
+        name in ["memory.init", "data.drop", "table.init", "elem.drop"]
       end)
     end)
   end
@@ -387,11 +398,9 @@ defmodule Watusi.Encoder do
       end)
 
     string =
-      Enum.find(rest, fn
-        {:string, _} -> true
-        _ -> false
-      end)
-      |> elem(1)
+      rest
+      |> Enum.filter(&match?({:string, _}, &1))
+      |> Enum.map_join("", fn {:string, s} -> s end)
 
     case offset_expr_item do
       nil ->
@@ -529,27 +538,23 @@ defmodule Watusi.Encoder do
         rest -> rest
       end
 
-    params =
-      rest
-      |> Enum.flat_map(fn
-        [{:keyword, "param"} | ts] -> ts
-        _other -> []
-      end)
-      |> Enum.filter(&match?({:id, _}, &1))
-      |> Enum.map(fn {:id, id} -> id end)
+    {_final_idx, map} =
+      Enum.reduce(rest, {0, %{}}, fn
+        [{:keyword, kind} | ts], {idx, acc} when kind in ["param", "local"] ->
+          {new_idx, new_acc} =
+            Enum.reduce(ts, {idx, acc}, fn
+              {:id, id}, {i, a} -> {i, Map.put(a, id, i)}
+              {:keyword, _}, {i, a} -> {i + 1, a}
+              _other, state -> state
+            end)
 
-    locals =
-      rest
-      |> Enum.flat_map(fn
-        [{:keyword, "local"} | ts] -> ts
-        _other -> []
-      end)
-      |> Enum.filter(&match?({:id, _}, &1))
-      |> Enum.map(fn {:id, id} -> id end)
+          {new_idx, new_acc}
 
-    (params ++ locals)
-    |> Enum.with_index()
-    |> Enum.into(%{}, fn {id, idx} -> {id, idx} end)
+        _other, state ->
+          state
+      end)
+
+    map
   end
 
   defp collect_instructions(rest, label_stack \\ []) do
@@ -738,6 +743,10 @@ defmodule Watusi.Encoder do
     encode_bulk_mem_immediates(name, args, ctx)
   end
 
+  defp encode_immediates(name, args, _ctx, _labels) when is_simd(name) do
+    encode_simd_immediates(name, args)
+  end
+
   defp encode_immediates(name, _args, _ctx, _labels)
        when name in ["memory.grow", "memory.size"] do
     [0x00]
@@ -796,6 +805,24 @@ defmodule Watusi.Encoder do
         end
     end
   end
+
+  defp encode_simd_immediates(name, args) when name in ["v128.load", "v128.store"] do
+    encode_mem_immediates(name, args)
+  end
+
+  defp encode_simd_immediates("v128.const", args) do
+    # v128.const expects a shape keyword (like i8x16) and 16 bytes of data
+    # (represented as 16 i32s in the WAT for i8x16)
+    bytes =
+      args
+      |> Enum.filter(&match?({:int, _}, &1))
+      |> Enum.map(fn {:int, v} -> <<v::8>> end)
+      |> IO.iodata_to_binary()
+
+    [bytes]
+  end
+
+  defp encode_simd_immediates(_name, _args), do: []
 
   defp encode_bulk_mem_immediates("memory.init", args, ctx) do
     dataidx =
@@ -883,6 +910,7 @@ defmodule Watusi.Encoder do
 
   defp natural_align(name) do
     cond do
+      String.contains?(name, "v128") -> 4
       String.contains?(name, "8") -> 0
       String.contains?(name, "16") -> 1
       String.contains?(name, "load32") or String.contains?(name, "store32") -> 2

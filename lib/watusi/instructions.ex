@@ -183,7 +183,12 @@ defmodule Watusi.Instructions do
     "memory.fill" => [0xFC, 0x0B],
     "table.init" => [0xFC, 0x0C],
     "elem.drop" => [0xFC, 0x0D],
-    "table.copy" => [0xFC, 0x0E]
+    "table.copy" => [0xFC, 0x0E],
+    # SIMD Instructions (0xFD prefix)
+    "v128.load" => [0xFD, 0x00],
+    "v128.store" => [0xFD, 0x0B],
+    "v128.const" => [0xFD, 0x0C],
+    "i8x16.swizzle" => [0xFD, 0x0E]
   }
 
   def opcode(name), do: Map.fetch!(@opcodes, name)
@@ -192,7 +197,8 @@ defmodule Watusi.Instructions do
     "i32" => 0x7F,
     "i64" => 0x7E,
     "f32" => 0x7D,
-    "f64" => 0x7C
+    "f64" => 0x7C,
+    "v128" => 0x7B
   }
 
   def valtype(name), do: Map.fetch!(@valtypes, name)
