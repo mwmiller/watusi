@@ -108,23 +108,31 @@ defmodule Watusi.Encoder.Sections do
     end
   end
 
+  def prepare_signatures(sections) do
+    # signatures are unique types in the module
+    type_sigs = Enum.map(sections.types, &extract_raw_signature/1)
+    tag_sigs = Enum.map(sections.tags, &extract_raw_signature([{:keyword, "func"} | &1]))
+
+    (collect_import_signatures(sections.imports, sections.types) ++
+       Enum.map(sections.funcs, &extract_signature(&1, sections.types)) ++
+       type_sigs ++ tag_sigs)
+    |> Enum.uniq()
+  end
+
   def extract_raw_signature([{:keyword, "type"} | rest]) do
-    rest =
-      case rest do
-        [{:id, _} | tail] -> tail
-        other -> other
-      end
+    # Skip optional ID
+    rest = case rest do [{:id, _} | tail] -> tail; other -> other end
 
     case rest do
-      [[{:keyword, "func"} | inner] | _] ->
-        extract_raw_signature([{:keyword, "func"} | inner])
-
-      _ ->
-        {[], []}
+      [[{:keyword, "func"} | inner] | _] -> extract_raw_signature([{:keyword, "func"} | inner])
+      [[{:keyword, "struct"} | inner] | _] -> {:struct, inner}
+      [[{:keyword, "array"} | inner] | _] -> {:array, inner}
+      _ -> {[], []}
     end
   end
 
   def extract_raw_signature([{:keyword, "func"} | rest]) do
+    # For function nodes, we extract 'param' and 'result' metadata
     metadata =
       case rest do
         [{:id, _} | tail] -> tail
@@ -155,13 +163,39 @@ defmodule Watusi.Encoder.Sections do
     {params, results}
   end
 
+  def encode_signature({:struct, fields}) do
+    # GC Struct type (0x5F) followed by vector of field types
+    [0x5F, Common.encode_vector(fields, &encode_field/1)]
+  end
+
+  def encode_signature({:array, field}) do
+    # GC Array type (0x5E) followed by a single field type
+    [0x5E, encode_field(field)]
+  end
+
   def encode_signature({params, results}) do
+    # Standard Function type (0x60)
     [
       0x60,
       Common.encode_vector(params, &Instructions.valtype/1),
       Common.encode_vector(results, &Instructions.valtype/1)
     ]
   end
+
+  defp encode_field(field) do
+    # A field can be (field i32) or (field (mut i32))
+    {type, mut} =
+      case field do
+        [{:keyword, "field"} | rest] -> extract_field_type(rest)
+        _ -> extract_field_type(field)
+      end
+
+    [Instructions.valtype(type), mut]
+  end
+
+  defp extract_field_type([[{:keyword, "mut"}, {:keyword, type}] | _]), do: {type, 0x01}
+  defp extract_field_type([{:keyword, type} | _]), do: {type, 0x00}
+  defp extract_field_type({:keyword, type}), do: {type, 0x00}
 
   def encode_import(item, signatures, types) do
     {mod, name, kind, rest} = normalize_import(item)

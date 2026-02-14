@@ -217,6 +217,26 @@ defmodule Watusi.Encoder.Instructions do
 
   @table_ops ["table.get", "table.set"]
 
+  @gc_ops [
+    "struct.new",
+    "struct.new_default",
+    "struct.get",
+    "struct.get_s",
+    "struct.get_u",
+    "struct.set",
+    "array.new",
+    "array.new_default",
+    "array.new_fixed",
+    "array.get",
+    "array.set",
+    "array.len",
+    "ref.test",
+    "ref.cast",
+    "br_on_cast",
+    "any.convert_extern",
+    "extern.convert_any"
+  ]
+
   @immediate_types [:int, :float, :id, :offset, :align]
 
   # Guards for instruction categories
@@ -230,6 +250,7 @@ defmodule Watusi.Encoder.Instructions do
   defguard is_atomic(name) when name in @atomic_ops
   defguard is_table_op(name) when name in @table_ops
   defguard is_tag_op(name) when name in @tag_ops
+  defguard is_gc_op(name) when name in @gc_ops
 
   def encode_instruction({:instr, name, args, labels}, ctx) do
     case Instructions.opcode(name) do
@@ -242,20 +263,23 @@ defmodule Watusi.Encoder.Instructions do
       {:fe, op} ->
         [0xFE, Common.encode_u32(op) | encode_immediates(name, args, ctx, labels)]
 
+      {:fb, op} ->
+        [0xFB, Common.encode_u32(op) | encode_immediates(name, args, ctx, labels)]
+
       opcode ->
         [opcode | encode_immediates(name, args, ctx, labels)]
     end
   end
 
-  defp encode_immediates(name, args, _ctx, _labels) when is_atomic(name) do
+  defp encode_immediates(name, args, ctx, _labels) when is_atomic(name) do
     # Atomic operations are specialized memory operations that sometimes
     # require a 'dummy' memory index (currently always 0 in WASM Core 1.0)
-    encode_atomic_immediates(name, args)
+    encode_atomic_immediates(name, args, ctx)
   end
 
-  defp encode_immediates(name, args, _ctx, _labels) when is_mem_instr(name) do
+  defp encode_immediates(name, args, ctx, _labels) when is_mem_instr(name) do
     # Standard memory operations (load/store) have alignment and offset immediates
-    encode_mem_immediates(name, args)
+    encode_mem_immediates(name, args, ctx)
   end
 
   defp encode_immediates(name, args, ctx, _labels) when is_control_flow(name) do
@@ -268,9 +292,9 @@ defmodule Watusi.Encoder.Instructions do
     encode_bulk_mem_immediates(name, args, ctx)
   end
 
-  defp encode_immediates(name, args, _ctx, _labels) when is_simd(name) do
+  defp encode_immediates(name, args, ctx, _labels) when is_simd(name) do
     # SIMD instructions have specialized immediates (lanes, constants)
-    encode_simd_immediates(name, args)
+    encode_simd_immediates(name, args, ctx)
   end
 
   defp encode_immediates(name, args, ctx, _labels) when is_table_op(name) do
@@ -281,6 +305,11 @@ defmodule Watusi.Encoder.Instructions do
   defp encode_immediates(name, args, ctx, _labels) when is_tag_op(name) do
     # throw/rethrow require a tag index
     encode_tag_immediates(name, args, ctx)
+  end
+
+  defp encode_immediates(name, args, ctx, _labels) when is_gc_op(name) do
+    # GC instructions like struct.new/get require type and field indices
+    encode_gc_immediates(name, args, ctx)
   end
 
   defp encode_immediates(name, _args, _ctx, _labels)
@@ -393,6 +422,64 @@ defmodule Watusi.Encoder.Instructions do
     end
   end
 
+  defp encode_gc_immediates(name, args, ctx) do
+    # 1. Resolve type index (first immediate for most GC instructions)
+    type_idx =
+      case Enum.find(args, &match?({:id, _}, &1)) do
+        {:id, id} -> resolve_type_id(id, ctx)
+        _ ->
+          case Enum.find(args, &match?({:int, _}, &1)) do
+            {:int, i} -> i
+            _ -> 0
+          end
+      end
+
+    # 2. Resolve field index (second immediate for struct.get/set)
+    case name do
+      n when n in ["struct.get", "struct.get_s", "struct.get_u", "struct.set"] ->
+        field_idx = resolve_field_index(type_idx, args, ctx)
+        [Common.encode_u32(type_idx), Common.encode_u32(field_idx)]
+
+      _ ->
+        [Common.encode_u32(type_idx)]
+    end
+  end
+
+  defp resolve_field_index(type_idx, args, ctx) do
+    # Fields can be named or indexed.
+    # We find the struct type definition to resolve symbolic field IDs.
+    type_item = Enum.at(ctx.types, type_idx)
+
+    case Enum.find(args, fn
+           {:id, id} -> !String.starts_with?(id, "$") or not type_is_id?(id, ctx)
+           _ -> false
+         end) do
+      {:id, id} ->
+        # Find the field index in the struct definition
+        [[{:keyword, "struct"} | fields] | _] =
+          case type_item do
+            [{:keyword, "type"}, {:id, _} | rest] -> rest
+            [{:keyword, "type"} | rest] -> rest
+          end
+
+        Enum.find_index(fields, fn
+          [{:keyword, "field"}, {:id, ^id} | _] -> true
+          _ -> false
+        end) || raise("Field not found: $#{id} in struct type #{type_idx}")
+
+      _ ->
+        # Fallback to integer index
+        case Enum.filter(args, &match?({:int, _}, &1)) do
+          [_, {:int, i} | _] -> i
+          _ -> 0
+        end
+    end
+  end
+
+  defp type_is_id?(id, ctx) do
+    Enum.any?(ctx.types, &match?([{:keyword, "type"}, {:id, ^id} | _], &1))
+  end
+
   defp encode_table_immediates(_name, args, ctx) do
     case args do
       [{:id, id} | _] ->
@@ -406,25 +493,25 @@ defmodule Watusi.Encoder.Instructions do
     end
   end
 
-  defp encode_atomic_immediates(name, args) do
+  defp encode_atomic_immediates(name, args, ctx) do
     # Atomic instructions (load, store, RMW, notify, wait) all use standard
     # memory immediates (alignment and offset). They do NOT encode a memory
     # index in the current WASM specification.
-    encode_mem_immediates(name, args)
+    encode_mem_immediates(name, args, ctx)
   end
 
-  defp encode_simd_immediates(name, args) when name in ["v128.load", "v128.store"] do
-    encode_mem_immediates(name, args)
+  defp encode_simd_immediates(name, args, ctx) when name in ["v128.load", "v128.store"] do
+    encode_mem_immediates(name, args, ctx)
   end
 
-  defp encode_simd_immediates(name, args) when name in ["i32x4.extract_lane", "i32x4.replace_lane"] do
+  defp encode_simd_immediates(name, args, _ctx) when name in ["i32x4.extract_lane", "i32x4.replace_lane"] do
     case Enum.find(args, &match?({:int, _}, &1)) do
       {:int, lane} -> [lane]
       _ -> [0]
     end
   end
 
-  defp encode_simd_immediates("v128.const", args) do
+  defp encode_simd_immediates("v128.const", args, _ctx) do
     # v128.const can be initialized from various shapes (i8x16, i32x4, etc.)
     values =
       args
@@ -453,7 +540,7 @@ defmodule Watusi.Encoder.Instructions do
     |> List.wrap()
   end
 
-  defp encode_simd_immediates(_name, _args), do: []
+  defp encode_simd_immediates(_name, _args, _ctx), do: []
 
   defp encode_bulk_mem_immediates("memory.init", args, ctx) do
     dataidx =
@@ -523,7 +610,22 @@ defmodule Watusi.Encoder.Instructions do
     [Common.encode_u32(dst), Common.encode_u32(src)]
   end
 
-  defp encode_mem_immediates(name, args) do
+  defp encode_mem_immediates(name, args, ctx) do
+    # 1. Resolve memory index. Defaults to 0 (the primary memory).
+    # In Multi-Memory, an explicit (memory $idx) can be provided.
+    mem_node = Enum.find(args, &match?([{:keyword, "memory"} | _], &1))
+
+    mem_idx =
+      case mem_node do
+        [{:keyword, "memory"}, {:id, id}] -> resolve_index(id, ctx.memories, ctx.imports, "memory")
+        [{:keyword, "memory"}, {:int, i}] -> i
+        _ -> 0
+      end
+
+    # 2. Determine if the targeted memory is 64-bit.
+    # Memory64 uses 64-bit offsets in the binary encoding.
+    is_64? = memory_is_64?(mem_idx, ctx)
+
     offset =
       case Enum.find(args, &match?({:offset, _}, &1)) do
         {:offset, v} -> v
@@ -536,7 +638,53 @@ defmodule Watusi.Encoder.Instructions do
         _ -> natural_align(name)
       end
 
-    [Common.encode_u32(align), Common.encode_u32(offset)]
+    # 3. Encode flags (alignment + extension bits).
+    # Bit 6 (0x40) indicates that a memory index follows.
+    flags = if mem_idx > 0, do: align ||| 0x40, else: align
+
+    encoded_offset =
+      if is_64?, do: LEB128.encode_unsigned(offset), else: Common.encode_u32(offset)
+
+    if mem_idx > 0 do
+      [Common.encode_u32(flags), Common.encode_u32(mem_idx), encoded_offset]
+    else
+      [Common.encode_u32(flags), encoded_offset]
+    end
+  end
+
+  defp memory_is_64?(idx, ctx) do
+    # We find the memory definition at the given index (accounting for imports).
+    import_count =
+      Enum.count(ctx.imports, fn item ->
+        case Sections.normalize_import(item) do
+          {_, _, "memory", _} -> true
+          _ -> false
+        end
+      end)
+
+    case idx < import_count do
+      true ->
+        # Check the import definition
+        import_item =
+          ctx.imports
+          |> Enum.filter(fn item ->
+            case Sections.normalize_import(item) do
+              {_, _, "memory", _} -> true
+              _ -> false
+            end
+          end)
+          |> Enum.at(idx)
+
+        {_, _, _, rest} = Sections.normalize_import(import_item)
+        Enum.any?(rest, &match?({:keyword, "i64"}, &1))
+
+      false ->
+        # Check the local definition
+        case Enum.at(ctx.memories, idx - import_count) do
+          [{:keyword, "memory"} | rest] -> Enum.any?(rest, &match?({:keyword, "i64"}, &1))
+          _ -> false
+        end
+    end
   end
 
   defp natural_align(name) do
@@ -700,13 +848,6 @@ defmodule Watusi.Encoder.Instructions do
       Enum.find_index(elems, &match?([{:keyword, "elem"}, {:id, ^id} | _], &1)) ||
         raise("Elem ID not found: $#{id}")
 
-  defp filter_immediates(args) do
-    Enum.filter(args, fn
-      {type, _} -> type in @immediate_types
-      _ -> false
-    end)
-  end
-
   @simd_shapes ["i8x16", "i16x8", "i32x4", "i64x2", "f32x4", "f64x2"]
 
   def collect_args([{type, _} = arg | rest], acc) when type in @immediate_types,
@@ -716,6 +857,9 @@ defmodule Watusi.Encoder.Instructions do
     do: collect_args(rest, [arg | acc])
 
   def collect_args([[{:keyword, "result"} | _] = arg | rest], acc),
+    do: collect_args(rest, [arg | acc])
+
+  def collect_args([[{:keyword, name} | _] = arg | rest], acc) when name in ["memory", "type"],
     do: collect_args(rest, [arg | acc])
 
   def collect_args(rest, acc), do: {Enum.reverse(acc), rest}
@@ -747,7 +891,7 @@ defmodule Watusi.Encoder.Instructions do
   @rejected_metadata_kinds ["param", "local"]
   defguardp is_rejected_metadata(kind) when kind in @rejected_metadata_kinds
 
-  @metadata_kinds ["type", "param", "local", "export", "then", "else", "try", "catch", "delegate", "catch_all", "do"]
+  @metadata_kinds ["type", "param", "local", "export", "then", "else", "try", "catch", "delegate", "catch_all", "do", "memory"]
   defguardp is_metadata(kind) when kind in @metadata_kinds
 
   def collect_instructions(rest, ctx, label_stack \\ []) do
@@ -894,9 +1038,24 @@ defmodule Watusi.Encoder.Instructions do
 
   defp do_collect_instructions([[{:keyword, name} | args] | rest], ctx, acc, labels) do
     # Folded instruction: (i32.add (i32.const 1) (i32.const 2))
+    # Immediates are the non-instruction arguments (ids, ints, or specific metadata keywords)
+    immediates =
+      Enum.filter(args, fn
+        item when is_list(item) ->
+          # Metadata blocks like (memory $m) or (type $t) are immediates,
+          # but nested instructions like (i32.const 1) are not.
+          case item do
+            [{:keyword, k} | _] when k in ["memory", "type", "result"] -> true
+            _ -> false
+          end
+
+        _other ->
+          true
+      end)
+
     new_acc =
       [
-        {:instr, name, filter_immediates(args), labels}
+        {:instr, name, immediates, labels}
         | Enum.reverse(collect_folded_args(args, ctx, labels))
       ] ++ acc
 

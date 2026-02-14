@@ -26,7 +26,7 @@ defmodule Watusi.Encoder do
     sections = Sections.group_sections(body)
     counts = resolve_counts(sections.imports)
     exports = collect_exports(body, counts)
-    signatures = prepare_signatures(sections)
+    signatures = Sections.prepare_signatures(sections)
 
     # The context map is passed down to allow instructions to resolve identifiers
     # into numeric indices based on the full module state.
@@ -123,17 +123,6 @@ defmodule Watusi.Encoder do
         _ -> false
       end
     end)
-  end
-
-  # We collect all unique signatures early to build the Type section (ID 1)
-  defp prepare_signatures(sections) do
-    type_sigs = Enum.map(sections.types, &Sections.extract_raw_signature/1)
-    tag_sigs = Enum.map(sections.tags, &Sections.extract_raw_signature([{:keyword, "func"} | &1]))
-
-    (Sections.collect_import_signatures(sections.imports, sections.types) ++
-       Enum.map(sections.funcs, &Sections.extract_signature(&1, sections.types)) ++
-       type_sigs ++ tag_sigs)
-    |> Enum.uniq()
   end
 
   # Data count is required if any passive segments or bulk memory instructions are used

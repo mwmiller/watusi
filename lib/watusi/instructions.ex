@@ -239,6 +239,24 @@ defmodule Watusi.Instructions do
     "f32x4.div" => {:fd, 0xE7},
     "f32x4.convert_i32x4_u" => {:fd, 0xFB},
     "f32x4.relaxed_min" => {:fd, 0x10D},
+    # Garbage Collection (0xFB prefix)
+    "struct.new" => {:fb, 0x00},
+    "struct.new_default" => {:fb, 0x01},
+    "struct.get" => {:fb, 0x02},
+    "struct.get_s" => {:fb, 0x03},
+    "struct.get_u" => {:fb, 0x04},
+    "struct.set" => {:fb, 0x05},
+    "array.new" => {:fb, 0x06},
+    "array.new_default" => {:fb, 0x07},
+    "array.new_fixed" => {:fb, 0x08},
+    "array.get" => {:fb, 0x0B},
+    "array.set" => {:fb, 0x0F},
+    "array.len" => {:fb, 0x11},
+    "ref.test" => {:fb, 0x14},
+    "ref.cast" => {:fb, 0x15},
+    "br_on_cast" => {:fb, 0x18},
+    "any.convert_extern" => {:fb, 0x1A},
+    "extern.convert_any" => {:fb, 0x1B},
     # Atomic Instructions (0xFE prefix)
     "memory.atomic.notify" => {:fe, 0x00},
     "memory.atomic.wait32" => {:fe, 0x01},
@@ -320,10 +338,55 @@ defmodule Watusi.Instructions do
     "f64" => 0x7C,
     "v128" => 0x7B,
     "externref" => 0x6F,
+    "anyref" => 0x6E,
+    "eqref" => 0x6D,
+    "structref" => 0x6B,
+    "arrayref" => 0x6A,
+    "i31ref" => 0x6C,
     "funcref" => 0x70,
     "anyfunc" => 0x70,
     "func" => 0x70
   }
 
   def valtype(name), do: Map.fetch!(@valtypes, name)
+
+  # Instruction metadata for validation
+  @instr_meta %{
+    "unreachable" => {[], []},
+    "nop" => {[], []},
+    "drop" => {[:any], []},
+    "select" => {[:any, :any, :i32], [:any]},
+    "local.get" => {[], [:any]},
+    "local.set" => {[:any], []},
+    "local.tee" => {[:any], [:any]},
+    "global.get" => {[], [:any]},
+    "global.set" => {[:any], []},
+    "i32.load" => {[:i32], [:i32]},
+    "i64.load" => {[:i32], [:i64]},
+    "f32.load" => {[:i32], [:f32]},
+    "f64.load" => {[:i32], [:f64]},
+    "i32.store" => {[:i32, :i32], []},
+    "i64.store" => {[:i32, :i64], []},
+    "f32.store" => {[:i32, :f32], []},
+    "f64.store" => {[:i32, :f64], []},
+    "i32.const" => {[], [:i32]},
+    "i64.const" => {[], [:i64]},
+    "f32.const" => {[], [:f32]},
+    "f64.const" => {[], [:f64]},
+    "i32.add" => {[:i32, :i32], [:i32]},
+    "i32.sub" => {[:i32, :i32], [:i32]},
+    "i32.mul" => {[:i32, :i32], [:i32]},
+    "i32.eq" => {[:i32, :i32], [:i32]},
+    "i32.lt_s" => {[:i32, :i32], [:i32]},
+    "i32.lt_u" => {[:i32, :i32], [:i32]},
+    "i64.add" => {[:i64, :i64], [:i64]},
+    "i64.sub" => {[:i64, :i64], [:i64]},
+    "i64.mul" => {[:i64, :i64], [:i64]},
+    "f32.add" => {[:f32, :f32], [:f32]},
+    "f64.add" => {[:f64, :f64], [:f64]},
+    "call" => {[], []}, # Dynamic
+    "return" => {[], []} # Control flow
+  }
+
+  def meta(name), do: Map.get(@instr_meta, name, {[], []})
 end
