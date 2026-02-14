@@ -177,18 +177,27 @@ defmodule Watusi.Instructions do
     "f32.reinterpret_i32" => 0xBE,
     "f64.reinterpret_i64" => 0xBF,
     # Bulk Memory Operations
-    "memory.init" => [0xFC, 0x08],
-    "data.drop" => [0xFC, 0x09],
-    "memory.copy" => [0xFC, 0x0A],
-    "memory.fill" => [0xFC, 0x0B],
-    "table.init" => [0xFC, 0x0C],
-    "elem.drop" => [0xFC, 0x0D],
-    "table.copy" => [0xFC, 0x0E],
+    "memory.init" => {:fc, 0x08},
+    "data.drop" => {:fc, 0x09},
+    "memory.copy" => {:fc, 0x0A},
+    "memory.fill" => {:fc, 0x0B},
+    "table.init" => {:fc, 0x0C},
+    "elem.drop" => {:fc, 0x0D},
+    "table.copy" => {:fc, 0x0E},
     # SIMD Instructions (0xFD prefix)
-    "v128.load" => [0xFD, 0x00],
-    "v128.store" => [0xFD, 0x0B],
-    "v128.const" => [0xFD, 0x0C],
-    "i8x16.swizzle" => [0xFD, 0x0E]
+    "v128.load" => {:fd, 0x00},
+    "v128.store" => {:fd, 0x0B},
+    "v128.const" => {:fd, 0x0C},
+    "i8x16.swizzle" => {:fd, 0x0E},
+    "i32x4.splat" => {:fd, 0x11},
+    "i32x4.extract_lane" => {:fd, 0x1B},
+    "i32x4.eq" => {:fd, 0x37},
+    "i32x4.lt_s" => {:fd, 0x39},
+    "v128.bitselect" => {:fd, 0x52},
+    "i32x4.neg" => {:fd, 0xA1},
+    "i32x4.add" => {:fd, 0xAE},
+    "i32x4.min_s" => {:fd, 0xB6},
+    "f32x4.add" => {:fd, 0xE4}
   }
 
   def opcode(name), do: Map.fetch!(@opcodes, name)

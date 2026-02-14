@@ -52,7 +52,16 @@ defmodule Watusi.Encoder do
     "v128.load",
     "v128.store",
     "v128.const",
-    "i8x16.swizzle"
+    "i8x16.swizzle",
+    "i32x4.splat",
+    "i32x4.extract_lane",
+    "i32x4.eq",
+    "i32x4.lt_s",
+    "v128.bitselect",
+    "i32x4.neg",
+    "i32x4.add",
+    "i32x4.min_s",
+    "f32x4.add"
   ]
 
   # Guards for instruction categories
@@ -727,8 +736,11 @@ defmodule Watusi.Encoder do
   defp collect_args(rest, acc), do: {Enum.reverse(acc), rest}
 
   defp encode_instruction({:instr, name, args, labels}, ctx, _) do
-    opcode = Instructions.opcode(name)
-    [opcode | encode_immediates(name, args, ctx, labels)]
+    case Instructions.opcode(name) do
+      {:fc, op} -> [0xFC, LEB128.encode_unsigned(op) | encode_immediates(name, args, ctx, labels)]
+      {:fd, op} -> [0xFD, LEB128.encode_unsigned(op) | encode_immediates(name, args, ctx, labels)]
+      opcode -> [opcode | encode_immediates(name, args, ctx, labels)]
+    end
   end
 
   defp encode_immediates(name, args, _ctx, _labels) when is_mem_instr(name) do
@@ -810,13 +822,51 @@ defmodule Watusi.Encoder do
     encode_mem_immediates(name, args)
   end
 
+  defp encode_simd_immediates(name, args) when name in ["i32x4.extract_lane"] do
+    case Enum.find(args, &match?({:int, _}, &1)) do
+      {:int, lane} -> [lane]
+      _other -> [0]
+    end
+  end
+
   defp encode_simd_immediates("v128.const", args) do
-    # v128.const expects a shape keyword (like i8x16) and 16 bytes of data
-    # (represented as 16 i32s in the WAT for i8x16)
-    bytes =
+    # v128.const expects a shape keyword and then values.
+    # We pack based on whether we see ints or floats and how many.
+    values =
       args
-      |> Enum.filter(&match?({:int, _}, &1))
-      |> Enum.map(fn {:int, v} -> <<v::8>> end)
+      |> Enum.filter(fn
+        {:int, _} -> true
+        {:float, _} -> true
+        _other -> false
+      end)
+
+    bytes =
+      case values do
+        # i8x16
+        vals when length(vals) == 16 ->
+          Enum.map(vals, fn {:int, v} -> <<v::8>> end)
+
+        # i16x8
+        vals when length(vals) == 8 ->
+          Enum.map(vals, fn {:int, v} -> <<v::little-16>> end)
+
+        # i32x4 or f32x4
+        vals when length(vals) == 4 ->
+          Enum.map(vals, fn
+            {:int, v} -> <<v::little-32>>
+            {:float, v} -> <<v::float-little-32>>
+          end)
+
+        # i64x2 or f64x2
+        vals when length(vals) == 2 ->
+          Enum.map(vals, fn
+            {:int, v} -> <<v::little-64>>
+            {:float, v} -> <<v::float-little-64>>
+          end)
+
+        _other ->
+          raise "Invalid v128.const arguments: #{inspect(args)}"
+      end
       |> IO.iodata_to_binary()
 
     [bytes]

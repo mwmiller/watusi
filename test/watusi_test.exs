@@ -373,7 +373,10 @@ defmodule WatusiTest do
         "isprime",
         "locals",
         "memory-basics",
-        "endianflip"
+        "endianflip",
+        "vcount",
+        "vmin",
+        "vecadd"
       ] do
     @sample sample
     test "integration: sample #{@sample}.wat" do
