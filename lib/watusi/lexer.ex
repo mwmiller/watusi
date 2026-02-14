@@ -5,6 +5,15 @@ defmodule Watusi.Lexer do
 
   @id_chars ~c"0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!#$%&'*+-./:<=>?@\\^_`|~"
 
+  @special_floats %{
+    "inf" => :infinity,
+    "+inf" => :infinity,
+    "-inf" => :neg_infinity,
+    "nan" => :nan,
+    "+nan" => :nan,
+    "-nan" => :neg_nan
+  }
+
   # Guard to check if a character is valid for a WAT identifier.
   defguardp is_id_char(c) when c in @id_chars
 
@@ -114,12 +123,18 @@ defmodule Watusi.Lexer do
   defp read_atom(acc, rest), do: {acc, rest}
 
   defp classify_atom(atom) do
+    case Map.get(@special_floats, atom) do
+      nil -> do_classify_atom(atom)
+      val -> {:float, val}
+    end
+  end
+
+  defp do_classify_atom(atom) do
     cond do
       hex_float_string?(atom) -> {:float, parse_hex_float(atom)}
       nan_payload_string?(atom) -> {:float, parse_nan_payload(atom)}
       integer_string?(atom) -> {:int, parse_integer(atom)}
       float_string?(atom) -> {:float, parse_float(atom)}
-      special_float_string?(atom) -> {:float, parse_special_float(atom)}
       String.starts_with?(atom, "offset=") -> {:offset, parse_kv_int(atom, "offset=")}
       String.starts_with?(atom, "align=") -> {:align, parse_kv_int(atom, "align=")}
       true -> {:keyword, atom}
@@ -201,21 +216,6 @@ defmodule Watusi.Lexer do
       val = String.to_integer(char, 16)
       acc + val / :math.pow(16, idx)
     end)
-  end
-
-  defp special_float_string?(s) do
-    s in ["inf", "-inf", "+inf", "nan", "-nan", "+nan"]
-  end
-
-  defp parse_special_float(s) do
-    case s do
-      "inf" -> :infinity
-      "+inf" -> :infinity
-      "-inf" -> :neg_infinity
-      "nan" -> :nan
-      "+nan" -> :nan
-      "-nan" -> :neg_nan
-    end
   end
 
   defp nan_payload_string?(s) do
