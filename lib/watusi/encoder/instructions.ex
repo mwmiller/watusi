@@ -120,14 +120,26 @@ defmodule Watusi.Encoder.Instructions do
     "v128.const",
     "i8x16.swizzle",
     "i32x4.splat",
+    "f32x4.splat",
     "i32x4.extract_lane",
+    "i32x4.replace_lane",
     "i32x4.eq",
     "i32x4.lt_s",
+    "i32x4.lt_u",
+    "f32x4.lt",
+    "v128.and",
+    "v128.or",
     "v128.bitselect",
+    "v128.any_true",
     "i32x4.neg",
+    "i32x4.shl",
     "i32x4.add",
     "i32x4.min_s",
-    "f32x4.add"
+    "f32x4.add",
+    "f32x4.sub",
+    "f32x4.mul",
+    "f32x4.div",
+    "f32x4.convert_i32x4_u"
   ]
 
   @atomic_ops [
@@ -321,8 +333,9 @@ defmodule Watusi.Encoder.Instructions do
     encode_mem_immediates(name, args)
   end
 
-  defp encode_simd_immediates(name, args) when name in ["i32x4.extract_lane"] do
-    case Enum.find(args, &match?({:int, _}, &1)) do
+  defp encode_simd_immediates(name, args)
+       when name in ["i32x4.extract_lane", "i32x4.replace_lane"] do
+    case Enum.find(args, &match?({:int, _val}, &1)) do
       {:int, lane} -> [lane]
       _other -> [0]
     end
@@ -542,8 +555,17 @@ defmodule Watusi.Encoder.Instructions do
   def resolve_index(id, list, imports, kind) do
     kind_imports =
       Enum.filter(imports, fn
-        [{:keyword, "import"}, _, _, [{:keyword, ^kind} | _other]] -> true
-        _other -> false
+        [{:keyword, "import"}, _, _, [{:keyword, ^kind} | _other]] ->
+          true
+
+        [{:keyword, ^kind} | rest] ->
+          Enum.any?(rest, fn
+            [{:keyword, "import"} | _other] -> true
+            _other -> false
+          end)
+
+        _other ->
+          false
       end)
 
     case find_id_in_imports(kind_imports, kind, id) do
@@ -557,9 +579,17 @@ defmodule Watusi.Encoder.Instructions do
   end
 
   defp find_id_in_imports(imports, kind, id) do
-    Enum.find_index(imports, fn
-      [{:keyword, "import"}, _, _, [{:keyword, ^kind}, {:id, ^id} | _other]] -> true
-      _other -> false
+    Enum.find_index(imports, fn item ->
+      case item do
+        [{:keyword, "import"}, _, _, [{:keyword, ^kind}, {:id, ^id} | _other]] ->
+          true
+
+        [{:keyword, ^kind}, {:id, ^id} | rest] ->
+          Enum.any?(rest, &match?([{:keyword, "import"} | _other], &1))
+
+        _other ->
+          false
+      end
     end)
   end
 
@@ -583,7 +613,12 @@ defmodule Watusi.Encoder.Instructions do
     end)
   end
 
+  @simd_shapes ["i8x16", "i16x8", "i32x4", "i64x2", "f32x4", "f64x2"]
+
   def collect_args([{type, _} = arg | rest], acc) when type in @immediate_types,
+    do: collect_args(rest, [arg | acc])
+
+  def collect_args([{:keyword, shape} = arg | rest], acc) when shape in @simd_shapes,
     do: collect_args(rest, [arg | acc])
 
   def collect_args([[{:keyword, "result"} | _other] = arg | rest], acc),
@@ -617,6 +652,12 @@ defmodule Watusi.Encoder.Instructions do
     map
   end
 
+  @metadata_kinds ["type", "param", "local", "export", "then", "else"]
+  defguardp is_metadata(kind) when kind in @metadata_kinds
+
+  @rejected_metadata_kinds ["param", "local"]
+  defguardp is_rejected_metadata(kind) when kind in @rejected_metadata_kinds
+
   def collect_instructions(rest, label_stack \\ []) do
     rest =
       case rest do
@@ -627,7 +668,7 @@ defmodule Watusi.Encoder.Instructions do
     rest
     |> Enum.reject(fn
       [{:keyword, "export"}, _name] -> true
-      [{:keyword, k} | _other] when k in ["param", "local"] -> true
+      [{:keyword, k} | _other] when is_rejected_metadata(k) -> true
       _other -> false
     end)
     |> do_collect_instructions([], label_stack)
@@ -663,7 +704,7 @@ defmodule Watusi.Encoder.Instructions do
   end
 
   defp do_collect_instructions([[{:keyword, name} | _other] | rest], acc, labels)
-       when name in ["type", "param", "local", "export", "then", "else"] do
+       when is_metadata(name) do
     do_collect_instructions(rest, acc, labels)
   end
 

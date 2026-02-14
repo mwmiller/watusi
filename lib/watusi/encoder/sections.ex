@@ -6,24 +6,63 @@ defmodule Watusi.Encoder.Sections do
   alias Watusi.Encoder.Instructions, as: InstrEncoder
   alias Watusi.Instructions
 
-  def group_sections(body) do
-    grouped =
-      Enum.group_by(body, fn
-        [{:keyword, kind} | _other] -> kind
-        _other -> :other
-      end)
+  @section_map %{
+    "func" => :funcs,
+    "table" => :tables,
+    "memory" => :memories,
+    "global" => :globals,
+    "elem" => :elems,
+    "data" => :data,
+    "type" => :types,
+    "start" => :starts
+  }
 
-    %{
-      imports: Map.get(grouped, "import", []),
-      funcs: Map.get(grouped, "func", []),
-      tables: Map.get(grouped, "table", []),
-      memories: Map.get(grouped, "memory", []),
-      globals: Map.get(grouped, "global", []),
-      elems: Map.get(grouped, "elem", []),
-      data: Map.get(grouped, "data", []),
-      types: Map.get(grouped, "type", []),
-      starts: Map.get(grouped, "start", [])
+  @importable_kinds ["func", "table", "memory", "global"]
+  defguardp is_importable(kind) when kind in @importable_kinds
+
+  @func_metadata_kinds ["param", "result", "local", "export"]
+  defguardp is_func_metadata(kind) when kind in @func_metadata_kinds
+
+  def group_sections(body) do
+    initial = %{
+      imports: [],
+      funcs: [],
+      tables: [],
+      memories: [],
+      globals: [],
+      elems: [],
+      data: [],
+      types: [],
+      starts: []
     }
+
+    body
+    |> Enum.reduce(initial, &group_item/2)
+    |> Map.new(fn {k, v} -> {k, Enum.reverse(v)} end)
+  end
+
+  defp group_item([{:keyword, "import"} | _other] = item, acc) do
+    %{acc | imports: [item | acc.imports]}
+  end
+
+  defp group_item([{:keyword, kind} | _other] = item, acc) when is_importable(kind) do
+    case inline_import?(item) do
+      true -> %{acc | imports: [item | acc.imports]}
+      false -> Map.update!(acc, Map.fetch!(@section_map, kind), &[item | &1])
+    end
+  end
+
+  defp group_item([{:keyword, kind} | _other] = item, acc) when is_map_key(@section_map, kind) do
+    Map.update!(acc, Map.fetch!(@section_map, kind), &[item | &1])
+  end
+
+  defp group_item(_other, acc), do: acc
+
+  defp inline_import?(node) do
+    Enum.any?(node, fn
+      [{:keyword, "import"} | _other] -> true
+      _other -> false
+    end)
   end
 
   def collect_import_signatures(imports, types) do
@@ -76,7 +115,7 @@ defmodule Watusi.Encoder.Sections do
         rest -> rest
       end
       |> Enum.take_while(fn
-        [{:keyword, k} | _other] when k in ["param", "result", "local", "export"] -> true
+        [{:keyword, k} | _other] when is_func_metadata(k) -> true
         _other -> false
       end)
 
@@ -108,44 +147,60 @@ defmodule Watusi.Encoder.Sections do
     ]
   end
 
-  def encode_import(
-        [{:keyword, "import"}, {:string, mod}, {:string, name}, [{:keyword, "func"} | rest]],
-        signatures,
-        types
-      ) do
-    sig = extract_signature([{:keyword, "func"} | rest], types)
-    type_idx = Enum.find_index(signatures, &(&1 == sig))
-    [Common.encode_string(mod), Common.encode_string(name), 0x00, Common.encode_u32(type_idx)]
-  end
+  def encode_import(item, signatures, types) do
+    {mod, name, kind, rest} = normalize_import(item)
 
-  def encode_import(
-        [{:keyword, "import"}, {:string, mod}, {:string, name}, [{:keyword, "table"} | rest]],
-        _sigs,
-        _types
-      ) do
-    [Common.encode_string(mod), Common.encode_string(name), 0x01, 0x70, encode_limits(rest)]
-  end
+    case kind do
+      "func" ->
+        sig = extract_signature([{:keyword, "func"} | rest], types)
+        type_idx = Enum.find_index(signatures, &(&1 == sig))
+        [Common.encode_string(mod), Common.encode_string(name), 0x00, Common.encode_u32(type_idx)]
 
-  def encode_import(
-        [{:keyword, "import"}, {:string, mod}, {:string, name}, [{:keyword, "memory"} | rest]],
-        _sigs,
-        _types
-      ) do
-    [Common.encode_string(mod), Common.encode_string(name), 0x02, encode_limits(rest)]
-  end
+      "table" ->
+        [Common.encode_string(mod), Common.encode_string(name), 0x01, 0x70, encode_limits(rest)]
 
-  def encode_import(
+      "memory" ->
+        [Common.encode_string(mod), Common.encode_string(name), 0x02, encode_limits(rest)]
+
+      "global" ->
+        type_desc =
+          case rest do
+            [{:id, _id}, desc] -> desc
+            [desc] -> desc
+          end
+
+        {type, mut} = extract_global_type(type_desc)
+
         [
-          {:keyword, "import"},
-          {:string, mod},
-          {:string, name},
-          [{:keyword, "global"}, type_desc]
-        ],
-        _sigs,
-        _types
-      ) do
-    {type, mut} = extract_global_type(type_desc)
-    [Common.encode_string(mod), Common.encode_string(name), 0x03, Instructions.valtype(type), mut]
+          Common.encode_string(mod),
+          Common.encode_string(name),
+          0x03,
+          Instructions.valtype(type),
+          mut
+        ]
+    end
+  end
+
+  defp normalize_import([
+         {:keyword, "import"},
+         {:string, mod},
+         {:string, name},
+         [{:keyword, kind} | rest]
+       ]) do
+    {mod, name, kind, rest}
+  end
+
+  defp normalize_import([{:keyword, kind} | rest]) do
+    import_node = Enum.find(rest, &match?([{:keyword, "import"} | _other], &1))
+    [{:keyword, "import"}, {:string, mod}, {:string, name}] = import_node
+
+    other_rest =
+      Enum.reject(rest, fn
+        [{:keyword, "import"} | _other] -> true
+        _other -> false
+      end)
+
+    {mod, name, kind, other_rest}
   end
 
   def encode_table([{:keyword, "table"} | rest]) do
@@ -363,11 +418,11 @@ defmodule Watusi.Encoder.Sections do
       imports
       |> Enum.with_index()
       |> Enum.flat_map(fn
-        {[{:keyword, "import"}, _, _, [{:keyword, "func"}, {:id, id} | _other]], idx} ->
-          [{idx, id}]
-
-        _other ->
-          []
+        {item, idx} ->
+          case normalize_import(item) do
+            {_mod, _name, "func", [{:id, id} | _other]} -> [{idx, id}]
+            _other -> []
+          end
       end)
 
     import_count = length(imports)
