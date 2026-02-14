@@ -10,7 +10,6 @@ defmodule Watusi.Encoder do
   defguardp is_branch(name) when name in ["br", "br_if", "br_table"]
   defguardp is_call(name) when name in ["call", "call_indirect"]
   defguardp is_global_op(name) when name in ["global.get", "global.set"]
-  defguardp is_int_const(name) when name in ["i32.const", "i64.const"]
 
   defguardp is_metadata(name)
             when name in ["type", "param", "result", "local", "export", "then", "else"]
@@ -822,7 +821,8 @@ defmodule Watusi.Encoder do
   defp encode_arg(name, {:id, id}, _, labels) when is_branch(name),
     do: resolve_label(id, labels) |> encode_u32()
 
-  defp encode_arg(name, {:int, val}, _, _) when is_int_const(name), do: LEB128.encode_signed(val)
+  defp encode_arg("i32.const", {:int, val}, _, _), do: val |> wrap_i32() |> LEB128.encode_signed()
+  defp encode_arg("i64.const", {:int, val}, _, _), do: val |> wrap_i64() |> LEB128.encode_signed()
 
   defp encode_arg("f32.const", {:float, :neg_nan}, _, _), do: <<0, 0, 192, 255>>
 
@@ -852,6 +852,16 @@ defmodule Watusi.Encoder do
 
   defp encode_arg(_name, {:int, val}, _, _), do: encode_u32(val)
   defp encode_arg(_name, {:id, id}, ctx, _), do: encode_u32(Map.fetch!(ctx.local_map, id))
+
+  defp wrap_i32(val) do
+    <<signed::signed-32>> = <<val::unsigned-32>>
+    signed
+  end
+
+  defp wrap_i64(val) do
+    <<signed::signed-64>> = <<val::unsigned-64>>
+    signed
+  end
 
   defp encode_sign(-1), do: 1
   defp encode_sign(_), do: 0
