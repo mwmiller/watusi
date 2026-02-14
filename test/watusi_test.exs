@@ -349,4 +349,17 @@ defmodule WatusiTest do
 
     assert_wasm_parity(wat)
   end
+
+  test "integration: hex floats with signs" do
+    wat = """
+    (module
+      (func (export "test") (result f32 f64)
+        f32.const +0x1p+0
+        f64.const -0x1.8p-1
+      )
+    )
+    """
+
+    assert_wasm_parity(wat)
+  end
 end

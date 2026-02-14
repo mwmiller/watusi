@@ -156,10 +156,20 @@ defmodule Watusi.Lexer do
 
   defp parse_integer(s) do
     case s do
-      "0x" <> hex -> String.to_integer(hex, 16)
-      "-" <> "0x" <> hex -> -String.to_integer(hex, 16)
-      "+" <> "0x" <> hex -> String.to_integer(hex, 16)
-      _ -> String.to_integer(s)
+      "0x" <> hex ->
+        String.to_integer(hex, 16)
+
+      "-" <> "0x" <> hex ->
+        -String.to_integer(hex, 16)
+
+      "+" <> "0x" <> hex ->
+        String.to_integer(hex, 16)
+
+      _ ->
+        case String.at(s, 0) do
+          "+" -> String.to_integer(String.slice(s, 1..-1//1))
+          _ -> String.to_integer(s)
+        end
     end
   end
 
@@ -168,16 +178,22 @@ defmodule Watusi.Lexer do
   end
 
   defp parse_float(s) do
-    {f, ""} = Float.parse(s)
-    f
+    case String.at(s, 0) do
+      "+" ->
+        {f, ""} = Float.parse(String.slice(s, 1..-1//1))
+        f
+
+      _ ->
+        {f, ""} = Float.parse(s)
+        f
+    end
   end
 
   defp hex_float_string?(s) do
-    s =~ ~r/^[+-]?0x[0-9a-fA-F]*(\.[0-9a-fA-F]*)?[pP][+-]?[0-9]+$/
+    s =~ ~r/^[+-]?0x([0-9a-fA-F]+\.?|[0-9a-fA-F]*\.[0-9a-fA-F]+)[pP][+-]?[0-9]+$/
   end
 
   defp parse_hex_float(s) do
-    # Format: [+-]?0x<significand>p<exponent>
     {sign, rest} =
       case s do
         "-" <> tail -> {-1, tail}
@@ -188,24 +204,37 @@ defmodule Watusi.Lexer do
     "0x" <> rest = rest
     [significand_str, exponent_str] = String.split(rest, ~r/[pP]/)
 
-    significand =
-      case String.split(significand_str, ".") do
-        [whole] ->
-          String.to_integer(whole, 16) / 1
+    significand = parse_hex_significand(significand_str)
+    exponent = parse_hex_exponent(exponent_str)
 
-        [whole, frac] ->
-          w =
-            case whole do
-              "" -> 0
-              _ -> String.to_integer(whole, 16)
-            end
-
-          f = parse_hex_frac(frac)
-          w + f
-      end
-
-    exponent = String.to_integer(exponent_str)
     sign * significand * :math.pow(2, exponent)
+  end
+
+  defp parse_hex_significand(s) do
+    case String.split(s, ".") do
+      [whole] ->
+        String.to_integer(whole, 16) / 1
+
+      [whole, ""] ->
+        String.to_integer(whole, 16) / 1
+
+      [whole, frac] ->
+        w =
+          case whole do
+            "" -> 0
+            _ -> String.to_integer(whole, 16)
+          end
+
+        f = parse_hex_frac(frac)
+        w + f
+    end
+  end
+
+  defp parse_hex_exponent(s) do
+    case s do
+      "+" <> e -> String.to_integer(e)
+      _ -> String.to_integer(s)
+    end
   end
 
   defp parse_hex_frac(frac) do
