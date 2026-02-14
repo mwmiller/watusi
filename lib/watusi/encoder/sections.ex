@@ -485,6 +485,11 @@ defmodule Watusi.Encoder.Sections do
 
     instructions = InstrEncoder.collect_instructions(rest, ctx)
     func_ctx = %{ctx | local_map: local_map}
+
+    # Semantic Validation (Work in progress)
+    # sig = extract_signature(func, ctx.types)
+    # Watusi.Validator.validate_function(instructions, sig, func_ctx)
+
     encoded_instrs = Enum.map(instructions, &InstrEncoder.encode_instruction(&1, func_ctx))
 
     body = [encoded_locals, encoded_instrs, 0x0B]

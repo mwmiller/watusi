@@ -145,6 +145,7 @@ defmodule Watusi.Lexer do
   end
 
   defp integer_string?(s) do
+    s = String.replace(s, "_", "")
     case s do
       <<"0x", _::binary>> -> true
       <<"-0x", _::binary>> -> true
@@ -154,6 +155,7 @@ defmodule Watusi.Lexer do
   end
 
   defp parse_integer(s) do
+    s = String.replace(s, "_", "")
     case s do
       <<"0x", hex::binary>> -> String.to_integer(hex, 16)
       <<"-0x", hex::binary>> -> -String.to_integer(hex, 16)
@@ -163,9 +165,10 @@ defmodule Watusi.Lexer do
     end
   end
 
-  defp float_string?(s), do: match?({_, ""}, Float.parse(s))
+  defp float_string?(s), do: match?({_, ""}, Float.parse(String.replace(s, "_", "")))
 
   defp parse_float(s) do
+    s = String.replace(s, "_", "")
     case s do
       <<"+", rest::binary>> ->
         {f, ""} = Float.parse(rest)
@@ -178,10 +181,13 @@ defmodule Watusi.Lexer do
   end
 
   defp hex_float_string?(s),
-    do: s =~ ~r/^[+-]?0x([0-9a-fA-F]+\.?|[0-9a-fA-F]*\.[0-9a-fA-F]+)[pP][+-]?[0-9]+$/
+    do: s =~ ~r/^[+-]?0x([0-9a-fA-F_]+\.?|[0-9a-fA-F_]*\.[0-9a-fA-F_]+)[pP][+-]?[0-9_]+$/
 
   defp parse_hex_float(s) do
-    # Hex floats are required for precise IEEE 754 representation
+    # Hex floats are required for precise IEEE 754 representation.
+    # We strip underscores which are purely for readability.
+    s = String.replace(s, "_", "")
+
     {sign, rest} =
       case s do
         <<"-", tail::binary>> -> {-1, tail}
@@ -193,7 +199,7 @@ defmodule Watusi.Lexer do
     [significand_str, exponent_str] = String.split(rest, ~r/[pP]/)
 
     significand = parse_hex_significand(significand_str)
-    exponent = parse_hex_exponent(exponent_str)
+    exponent = String.to_integer(exponent_str)
 
     sign * significand * :math.pow(2, exponent)
   end
@@ -218,13 +224,6 @@ defmodule Watusi.Lexer do
     end
   end
 
-  defp parse_hex_exponent(s) do
-    case s do
-      <<"+", e::binary>> -> String.to_integer(e)
-      _ -> String.to_integer(s)
-    end
-  end
-
   defp parse_hex_frac(frac) do
     frac
     |> String.codepoints()
@@ -236,10 +235,11 @@ defmodule Watusi.Lexer do
   end
 
   defp nan_payload_string?(s),
-    do: s =~ ~r/^[+-]?nan:0x[0-9a-fA-F]+$/ or s =~ ~r/^[+-]?nan:[0-9]+$/
+    do: s =~ ~r/^[+-]?nan:0x[0-9a-fA-F_]+$/ or s =~ ~r/^[+-]?nan:[0-9_]+$/
 
   defp parse_nan_payload(s) do
     # NaN payloads allow encoding diagnostic information in the float bit-pattern
+    s = String.replace(s, "_", "")
     {sign, rest} =
       case s do
         <<"-", tail::binary>> -> {-1, tail}
