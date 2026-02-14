@@ -480,17 +480,29 @@ defmodule Watusi.Encoder do
           []
       end)
 
+    grouped_locals = group_locals(locals)
+
+    encoded_locals =
+      encode_vector(grouped_locals, fn {count, t} -> [encode_u32(count), encode_valtype(t)] end)
+
     instructions = collect_instructions(rest)
     func_ctx = %{ctx | local_map: local_map}
     encoded_instrs = Enum.map(instructions, &encode_instruction(&1, func_ctx, []))
 
-    payload = [
-      encode_vector(locals, fn t -> [encode_u32(1), encode_valtype(t)] end),
-      encoded_instrs,
-      0x0B
-    ]
+    body = [encoded_locals, encoded_instrs, 0x0B]
+    [encode_u32(IO.iodata_length(body)), body]
+  end
 
-    [encode_u32(IO.iodata_length(payload)), payload]
+  defp group_locals([]), do: []
+
+  defp group_locals([first | rest]) do
+    Enum.reduce(rest, [{1, first}], fn type, acc ->
+      case acc do
+        [{count, ^type} | tail] -> [{count + 1, type} | tail]
+        _ -> [{1, type} | acc]
+      end
+    end)
+    |> Enum.reverse()
   end
 
   defp build_local_map([{:keyword, "func"} | rest]) do
@@ -898,9 +910,15 @@ defmodule Watusi.Encoder do
   defp resolve_table_index({:id, id}, ts, im), do: resolve_index(id, ts, im, "table")
 
   defp resolve_index(id, list, imports, kind) do
-    case find_import_index(imports, kind, id) do
+    kind_imports =
+      Enum.filter(imports, fn
+        [{:keyword, "import"}, _, _, [{:keyword, ^kind} | _]] -> true
+        _ -> false
+      end)
+
+    case find_id_in_imports(kind_imports, kind, id) do
       nil ->
-        count_imports(imports, kind) +
+        length(kind_imports) +
           (find_local_index(list, kind, id) || raise("ID not found: #{kind} $#{id}"))
 
       idx ->
@@ -908,12 +926,12 @@ defmodule Watusi.Encoder do
     end
   end
 
-  defp find_import_index(im, k, id),
-    do:
-      Enum.find_index(
-        im,
-        &match?([{:keyword, "import"}, _, _, [{:keyword, ^k}, {:id, ^id} | _]], &1)
-      )
+  defp find_id_in_imports(imports, kind, id) do
+    Enum.find_index(imports, fn
+      [{:keyword, "import"}, _, _, [{:keyword, ^kind}, {:id, ^id} | _]] -> true
+      _ -> false
+    end)
+  end
 
   defp find_local_index(ls, k, id),
     do: Enum.find_index(ls, &match?([{:keyword, ^k}, {:id, ^id} | _], &1))
