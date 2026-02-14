@@ -43,97 +43,114 @@ defmodule Watusi.Encoder do
 
   def encode([[{:keyword, "module"} | body]]) do
     header = <<0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00>>
+    sections = group_sections(body)
 
-    sections =
-      Enum.group_by(body, fn
-        [{:keyword, kind} | _] -> kind
-        _ -> :other
-      end)
+    # Counts for index resolution
+    counts = %{
+      func: count_imports(sections.imports, "func"),
+      table: count_imports(sections.imports, "table"),
+      memory: count_imports(sections.imports, "memory"),
+      global: count_imports(sections.imports, "global")
+    }
 
-    imports = Map.get(sections, "import", [])
-    funcs = Map.get(sections, "func", [])
-    tables = Map.get(sections, "table", [])
-    memories = Map.get(sections, "memory", [])
-    globals = Map.get(sections, "global", [])
-    elems = Map.get(sections, "elem", [])
-    data = Map.get(sections, "data", [])
-    types = Map.get(sections, "type", [])
-
-    num_imported_funcs = count_imports(imports, "func")
-    num_imported_tables = count_imports(imports, "table")
-    num_imported_mems = count_imports(imports, "memory")
-    num_imported_globals = count_imports(imports, "global")
-
-    exports =
-      collect_exports(
-        body,
-        num_imported_funcs,
-        num_imported_tables,
-        num_imported_mems,
-        num_imported_globals
-      )
-
-    type_sigs = Enum.map(types, &extract_raw_signature/1)
+    exports = collect_exports(body, counts)
+    type_sigs = Enum.map(sections.types, &extract_raw_signature/1)
 
     signatures =
-      (collect_import_signatures(imports, types) ++
-         Enum.map(funcs, &extract_signature(&1, types)) ++
+      (collect_import_signatures(sections.imports, sections.types) ++
+         Enum.map(sections.funcs, &extract_signature(&1, sections.types)) ++
          type_sigs)
       |> Enum.uniq()
 
     ctx = %{
       local_map: %{},
-      funcs: funcs,
-      imports: imports,
-      globals: globals,
+      funcs: sections.funcs,
+      imports: sections.imports,
+      globals: sections.globals,
       sigs: signatures,
-      types: types
+      types: sections.types
     }
 
     IO.iodata_to_binary([
       header,
       encode_section(1, encode_vector(signatures, &encode_signature/1)),
-      encode_section(2, encode_vector(imports, &encode_import(&1, signatures, types))),
+      encode_section(
+        2,
+        encode_vector(sections.imports, &encode_import(&1, signatures, sections.types))
+      ),
       encode_section(
         3,
         encode_vector(
-          funcs,
+          sections.funcs,
           fn f ->
-            sig = extract_signature(f, types)
+            sig = extract_signature(f, sections.types)
             Enum.find_index(signatures, &(&1 == sig))
           end,
           &encode_u32/1
         )
       ),
-      encode_section(4, encode_vector(tables, &encode_table/1)),
-      encode_section(5, encode_vector(memories, &encode_memory/1)),
-      encode_section(6, encode_vector(globals, &encode_global(&1, ctx))),
-      encode_section(
-        7,
-        encode_vector(exports, fn {:export, name, kind, index_or_id} ->
-          index =
-            case kind do
-              :func -> resolve_func_index(index_or_id, funcs, imports)
-              :table -> resolve_table_index(index_or_id, tables, imports)
-              :memory -> resolve_memory_index(index_or_id, memories, imports)
-              :global -> resolve_global_index(index_or_id, globals, imports)
-            end
-
-          kind_byte =
-            case kind do
-              :func -> 0x00
-              :table -> 0x01
-              :memory -> 0x02
-              :global -> 0x03
-            end
-
-          [encode_string(name), kind_byte, encode_u32(index)]
-        end)
-      ),
-      encode_section(9, encode_vector(elems, &encode_elem(&1, ctx))),
-      encode_section(10, encode_vector(funcs, &encode_func_body(&1, ctx))),
-      encode_section(11, encode_vector(data, &encode_data(&1, ctx)))
+      encode_section(4, encode_vector(sections.tables, &encode_table/1)),
+      encode_section(5, encode_vector(sections.memories, &encode_memory/1)),
+      encode_section(6, encode_vector(sections.globals, &encode_global(&1, ctx))),
+      encode_export_section(exports, sections, signatures),
+      encode_start_section(sections.starts, sections.funcs, sections.imports),
+      encode_section(9, encode_vector(sections.elems, &encode_elem(&1, ctx))),
+      encode_section(10, encode_vector(sections.funcs, &encode_func_body(&1, ctx))),
+      encode_section(11, encode_vector(sections.data, &encode_data(&1, ctx)))
     ])
+  end
+
+  defp group_sections(body) do
+    grouped =
+      Enum.group_by(body, fn
+        [{:keyword, kind} | _] -> kind
+        _ -> :other
+      end)
+
+    %{
+      imports: Map.get(grouped, "import", []),
+      funcs: Map.get(grouped, "func", []),
+      tables: Map.get(grouped, "table", []),
+      memories: Map.get(grouped, "memory", []),
+      globals: Map.get(grouped, "global", []),
+      elems: Map.get(grouped, "elem", []),
+      data: Map.get(grouped, "data", []),
+      types: Map.get(grouped, "type", []),
+      starts: Map.get(grouped, "start", [])
+    }
+  end
+
+  defp encode_export_section([], _sections, _sigs), do: []
+
+  defp encode_export_section(exports, sections, _sigs) do
+    encode_section(
+      7,
+      encode_vector(exports, fn {:export, name, kind, index_or_id} ->
+        index =
+          case kind do
+            :func -> resolve_func_index(index_or_id, sections.funcs, sections.imports)
+            :table -> resolve_table_index(index_or_id, sections.tables, sections.imports)
+            :memory -> resolve_memory_index(index_or_id, sections.memories, sections.imports)
+            :global -> resolve_global_index(index_or_id, sections.globals, sections.imports)
+          end
+
+        kind_byte =
+          case kind do
+            :func -> 0x00
+            :table -> 0x01
+            :memory -> 0x02
+            :global -> 0x03
+          end
+
+        [encode_string(name), kind_byte, encode_u32(index)]
+      end)
+    )
+  end
+
+  defp encode_start_section([], _funcs, _imports), do: []
+
+  defp encode_start_section([[{:keyword, "start"}, index_or_id] | _], funcs, imports) do
+    encode_section(8, encode_u32(resolve_func_index(index_or_id, funcs, imports)))
   end
 
   defp count_imports(imports, kind) do
@@ -143,23 +160,23 @@ defmodule Watusi.Encoder do
     end)
   end
 
-  defp collect_exports(body, n_funcs, n_tables, n_mems, n_globals) do
+  defp collect_exports(body, counts) do
     {exports, _, _, _, _} =
       Enum.reduce(body, {[], 0, 0, 0, 0}, fn
         [{:keyword, "func"} | _] = f, {acc, f_i, t_i, m_i, g_i} ->
-          shorthands = collect_shorthands(f, :func, n_funcs + f_i)
+          shorthands = collect_shorthands(f, :func, counts.func + f_i)
           {acc ++ shorthands, f_i + 1, t_i, m_i, g_i}
 
         [{:keyword, "table"} | _] = t, {acc, f_i, t_i, m_i, g_i} ->
-          shorthands = collect_shorthands(t, :table, n_tables + t_i)
+          shorthands = collect_shorthands(t, :table, counts.table + t_i)
           {acc ++ shorthands, f_i, t_i + 1, m_i, g_i}
 
         [{:keyword, "memory"} | _] = m, {acc, f_i, t_i, m_i, g_i} ->
-          shorthands = collect_shorthands(m, :memory, n_mems + m_i)
+          shorthands = collect_shorthands(m, :memory, counts.memory + m_i)
           {acc ++ shorthands, f_i, t_i, m_i + 1, g_i}
 
         [{:keyword, "global"} | _] = g, {acc, f_i, t_i, m_i, g_i} ->
-          shorthands = collect_shorthands(g, :global, n_globals + g_i)
+          shorthands = collect_shorthands(g, :global, counts.global + g_i)
           {acc ++ shorthands, f_i, t_i, m_i, g_i + 1}
 
         [{:keyword, "export"}, {:string, name}, [{:keyword, kind}, index_or_id]],
@@ -207,16 +224,16 @@ defmodule Watusi.Encoder do
 
   defp encode_import(
          [{:keyword, "import"}, {:string, mod}, {:string, name}, [{:keyword, "table"} | rest]],
-         _signatures,
-         _types
+         _,
+         _
        ) do
     [encode_string(mod), encode_string(name), 0x01, 0x70, encode_limits(rest)]
   end
 
   defp encode_import(
          [{:keyword, "import"}, {:string, mod}, {:string, name}, [{:keyword, "memory"} | rest]],
-         _signatures,
-         _types
+         _,
+         _
        ) do
     [encode_string(mod), encode_string(name), 0x02, encode_limits(rest)]
   end
@@ -228,8 +245,8 @@ defmodule Watusi.Encoder do
            {:string, name},
            [{:keyword, "global"}, type_desc]
          ],
-         _signatures,
-         _types
+         _,
+         _
        ) do
     {type, mut} = extract_global_type(type_desc)
     [encode_string(mod), encode_string(name), 0x03, encode_valtype(type), mut]
@@ -461,9 +478,7 @@ defmodule Watusi.Encoder do
   defp do_collect_instructions([], acc, _labels), do: Enum.reverse(acc)
 
   defp do_collect_instructions([[{:keyword, name} | _] | rest], acc, labels)
-       when is_metadata(name) do
-    do_collect_instructions(rest, acc, labels)
-  end
+       when is_metadata(name), do: do_collect_instructions(rest, acc, labels)
 
   defp do_collect_instructions([{:keyword, name} | rest], acc, labels) do
     {args, remaining} = collect_args(rest, [])
@@ -664,7 +679,6 @@ defmodule Watusi.Encoder do
     do: resolve_label(id, labels) |> encode_u32()
 
   defp encode_arg(name, {:int, val}, _, _) when is_int_const(name), do: LEB128.encode_signed(val)
-
   defp encode_arg("f32.const", {:float, val}, _, _), do: encode_f32(val)
   defp encode_arg("f32.const", {:int, val}, _, _), do: encode_f32(val * 1.0)
   defp encode_arg("f64.const", {:float, val}, _, _), do: encode_f64(val)
@@ -731,10 +745,7 @@ defmodule Watusi.Encoder do
   defp find_local_index(ls, k, id),
     do: Enum.find_index(ls, &match?([{:keyword, ^k}, {:id, ^id} | _], &1))
 
-  defp encode_section(_id, payload) when payload in [[], [<<0>>, []]] do
-    []
-  end
-
+  defp encode_section(_id, payload) when payload in [[], [<<0>>, []]], do: []
   defp encode_section(id, p), do: [id, encode_u32(IO.iodata_length(p)), p]
   defp encode_vector(l, f), do: [encode_u32(length(l)), Enum.map(l, f)]
   defp encode_vector(l, m, f), do: [encode_u32(length(l)), Enum.map(l, m) |> Enum.map(f)]

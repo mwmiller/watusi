@@ -242,4 +242,47 @@ defmodule WatusiTest do
 
     assert_wasm_parity(wat)
   end
+
+  test "integration: start section" do
+    wat = """
+    (module
+      (func $init
+        i32.const 42
+        drop
+      )
+      (start $init)
+    )
+    """
+
+    assert_wasm_parity(wat)
+  end
+
+  test "integration: string hex escapes" do
+    wat = """
+    (module
+      (memory 1)
+      (data (i32.const 0) "hello\\0a\\ffworld")
+    )
+    """
+
+    assert_wasm_parity(wat)
+  end
+
+  test "integration: comments" do
+    wat = """
+    (module
+      ;; This is a line comment
+      (func $test
+        i32.const 1 (; this is a block comment ;)
+        drop
+        (;
+           Nested block comments
+           (; are also supported ;)
+        ;)
+      )
+    )
+    """
+
+    assert_wasm_parity(wat)
+  end
 end

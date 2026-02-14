@@ -11,6 +11,8 @@ defmodule Watusi.Lexer do
   # Guard to check if a character can start a WAT atom (keyword or instruction).
   defguardp is_atom_start(c) when c in ?a..?z or c in ?0..?9 or c in [?., ?_, ?-]
 
+  defguardp is_hex(c) when c in ?0..?9 or c in ?a..?f or c in ?A..?F
+
   def tokenize(input) do
     do_tokenize(input, [])
   end
@@ -68,6 +70,11 @@ defmodule Watusi.Lexer do
   defp skip_block_comment(<<>>, _depth), do: <<>>
 
   defp read_string(<<"\"", rest::binary>>, acc), do: {acc, rest}
+
+  defp read_string(<<"\\", a, b, rest::binary>>, acc) when is_hex(a) and is_hex(b) do
+    byte = String.to_integer(<<a, b>>, 16)
+    read_string(rest, <<acc::binary, byte>>)
+  end
 
   defp read_string(<<"\\", c, rest::binary>>, acc),
     do: read_string(rest, <<acc::binary, escape(c)>>)
