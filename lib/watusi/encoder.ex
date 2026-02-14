@@ -3,6 +3,7 @@ defmodule Watusi.Encoder do
   Encoder for WebAssembly Binary Format.
   """
   alias Watusi.Instructions
+  import Bitwise
 
   # Guards for instruction categories
   defguardp is_control_flow(name) when name in ["block", "loop", "if"]
@@ -512,7 +513,9 @@ defmodule Watusi.Encoder do
           []
       end)
 
-    (params ++ locals) |> Enum.with_index() |> Enum.into(%{}, fn {id, idx} -> {id, idx} end)
+    (params ++ locals)
+    |> Enum.with_index()
+    |> Enum.into(%{}, fn {id, idx} -> {id, idx} end)
   end
 
   defp collect_instructions(rest, label_stack \\ []) do
@@ -820,8 +823,24 @@ defmodule Watusi.Encoder do
     do: resolve_label(id, labels) |> encode_u32()
 
   defp encode_arg(name, {:int, val}, _, _) when is_int_const(name), do: LEB128.encode_signed(val)
+
+  defp encode_arg("f32.const", {:float, :neg_nan}, _, _), do: <<0, 0, 192, 255>>
+
+  defp encode_arg("f32.const", {:float, {:nan, sign, payload}}, _, _) do
+    bits = encode_sign(sign) <<< 31 ||| 0xFF <<< 23 ||| (payload &&& 0x7FFFFF)
+    <<bits::little-32>>
+  end
+
   defp encode_arg("f32.const", {:float, val}, _, _), do: encode_f32(val)
   defp encode_arg("f32.const", {:int, val}, _, _), do: encode_f32(val * 1.0)
+
+  defp encode_arg("f64.const", {:float, :neg_nan}, _, _), do: <<0, 0, 0, 0, 0, 0, 248, 255>>
+
+  defp encode_arg("f64.const", {:float, {:nan, sign, payload}}, _, _) do
+    bits = encode_sign(sign) <<< 63 ||| 0x7FF <<< 52 ||| (payload &&& 0xFFFFFFFFFFFFF)
+    <<bits::little-64>>
+  end
+
   defp encode_arg("f64.const", {:float, val}, _, _), do: encode_f64(val)
   defp encode_arg("f64.const", {:int, val}, _, _), do: encode_f64(val * 1.0)
 
@@ -833,6 +852,9 @@ defmodule Watusi.Encoder do
 
   defp encode_arg(_name, {:int, val}, _, _), do: encode_u32(val)
   defp encode_arg(_name, {:id, id}, ctx, _), do: encode_u32(Map.fetch!(ctx.local_map, id))
+
+  defp encode_sign(-1), do: 1
+  defp encode_sign(_), do: 0
 
   defp resolve_label(id, labels),
     do: Enum.find_index(labels, &(&1 == id)) || raise("Label not found: $#{id}")

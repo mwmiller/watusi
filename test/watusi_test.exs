@@ -332,4 +332,21 @@ defmodule WatusiTest do
 
     assert_wasm_parity(wat)
   end
+
+  test "integration: advanced floating point" do
+    wat = """
+    (module
+      (func (export "test") (result f32 f32 f32 f32 f64 f64)
+        f32.const +inf
+        f32.const -inf
+        f32.const +nan
+        f32.const -nan
+        f64.const nan:0x1
+        f64.const -nan:0x123456789abcd
+      )
+    )
+    """
+
+    assert_wasm_parity(wat)
+  end
 end
