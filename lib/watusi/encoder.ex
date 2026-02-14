@@ -41,13 +41,14 @@ defmodule Watusi.Encoder do
     }
 
     # Prepare specific sections
+
     elem_section =
       Common.encode_section(
         9,
         Common.encode_vector(sections.elems, &Sections.encode_elem(&1, ctx))
       )
 
-    data_count_section = prepare_data_count_section(sections, needs_data_count?(sections))
+    data_count_section = prepare_data_count_section(sections, needs_data_count?(sections, ctx))
 
     code_section =
       Common.encode_section(
@@ -62,6 +63,7 @@ defmodule Watusi.Encoder do
       )
 
     # Custom Name Section
+
     name_section =
       case debug_names do
         true -> Sections.encode_name_section(module_id, sections, counts)
@@ -84,6 +86,7 @@ defmodule Watusi.Encoder do
           sections.funcs,
           fn f ->
             sig = Sections.extract_signature(f, sections.types)
+
             Enum.find_index(signatures, &(&1 == sig))
           end,
           &Common.encode_u32/1
@@ -133,8 +136,8 @@ defmodule Watusi.Encoder do
     |> Enum.uniq()
   end
 
-  defp needs_data_count?(sections) do
-    Enum.any?(sections.data, &passive_data?(&1)) or has_bulk_mem_instr?(sections.funcs)
+  defp needs_data_count?(sections, ctx) do
+    Enum.any?(sections.data, &passive_data?(&1)) or has_bulk_mem_instr?(sections.funcs, ctx)
   end
 
   defp prepare_data_count_section(sections, true) do
@@ -153,9 +156,9 @@ defmodule Watusi.Encoder do
     end)
   end
 
-  defp has_bulk_mem_instr?(funcs) do
+  defp has_bulk_mem_instr?(funcs, ctx) do
     Enum.any?(funcs, fn [_head | rest] ->
-      instructions = InstrEncoder.collect_instructions(rest)
+      instructions = InstrEncoder.collect_instructions(rest, ctx)
 
       Enum.any?(instructions, fn {:instr, name, _args, _labels} ->
         name in ["memory.init", "data.drop", "table.init", "elem.drop"]

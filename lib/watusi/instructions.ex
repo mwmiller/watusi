@@ -17,6 +17,8 @@ defmodule Watusi.Instructions do
     "return" => 0x0F,
     "call" => 0x10,
     "call_indirect" => 0x11,
+    "return_call" => 0x12,
+    "return_call_indirect" => 0x13,
     "drop" => 0x1A,
     "select" => 0x1B,
     "local.get" => 0x20,
@@ -225,6 +227,7 @@ defmodule Watusi.Instructions do
     "f32x4.mul" => {:fd, 0xE6},
     "f32x4.div" => {:fd, 0xE7},
     "f32x4.convert_i32x4_u" => {:fd, 0xFB},
+    "f32x4.relaxed_min" => {:fd, 269},
     # Atomic Instructions (0xFE prefix)
     "memory.atomic.notify" => {:fe, 0x00},
     "memory.atomic.wait32" => {:fe, 0x01},

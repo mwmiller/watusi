@@ -34,6 +34,7 @@ The test suite uses tools from the [WebAssembly Binary Toolkit (WABT)](https://g
 Additionally, several complex integration tests are sourced from:
 - [Eli Bendersky's wasm-wat-samples](https://github.com/eliben/wasm-wat-samples)
 - [Benedikt Meurer's wasm-dbg-stories](https://github.com/bmeurer/wasm-dbg-stories)
+- [agstenf's wasm-fingerprinting](https://github.com/agstenf/wasm-fingerprinting)
 
 To run the tests, ensure these tools are available in your PATH.
 

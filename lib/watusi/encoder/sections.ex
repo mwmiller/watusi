@@ -276,7 +276,7 @@ defmodule Watusi.Encoder.Sections do
 
     {type_desc, rest} = List.pop_at(rest, 0)
     {type, mut} = extract_global_type(type_desc)
-    instructions = InstrEncoder.collect_instructions(rest)
+    instructions = InstrEncoder.collect_instructions(rest, ctx)
 
     [
       Instructions.valtype(type),
@@ -293,10 +293,10 @@ defmodule Watusi.Encoder.Sections do
     {offset_instrs, rest} =
       case rest do
         [[{:keyword, "offset"} | expr] | tail] ->
-          {InstrEncoder.collect_instructions(expr), tail}
+          {InstrEncoder.collect_instructions(expr, ctx), tail}
 
         [[{:keyword, _id} | _other] = instr | tail] ->
-          {InstrEncoder.collect_instructions([instr]), tail}
+          {InstrEncoder.collect_instructions([instr], ctx), tail}
 
         _other ->
           raise "Invalid elem segment"
@@ -341,7 +341,7 @@ defmodule Watusi.Encoder.Sections do
 
         offset_expr =
           offset_expr_item
-          |> InstrEncoder.collect_instructions()
+          |> InstrEncoder.collect_instructions(ctx)
           |> Enum.map(&InstrEncoder.encode_instruction(&1, ctx))
 
         [Common.encode_u32(memidx), offset_expr, 0x0B, Common.encode_string(string)]
@@ -367,7 +367,7 @@ defmodule Watusi.Encoder.Sections do
         [Common.encode_u32(count), Instructions.valtype(t)]
       end)
 
-    instructions = InstrEncoder.collect_instructions(rest)
+    instructions = InstrEncoder.collect_instructions(rest, ctx)
     func_ctx = %{ctx | local_map: local_map}
     encoded_instrs = Enum.map(instructions, &InstrEncoder.encode_instruction(&1, func_ctx))
 
