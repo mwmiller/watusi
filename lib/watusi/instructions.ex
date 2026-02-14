@@ -175,7 +175,15 @@ defmodule Watusi.Instructions do
     "i32.reinterpret_f32" => 0xBC,
     "i64.reinterpret_f64" => 0xBD,
     "f32.reinterpret_i32" => 0xBE,
-    "f64.reinterpret_i64" => 0xBF
+    "f64.reinterpret_i64" => 0xBF,
+    # Bulk Memory Operations
+    "memory.init" => [0xFC, 0x08],
+    "data.drop" => [0xFC, 0x09],
+    "memory.copy" => [0xFC, 0x0A],
+    "memory.fill" => [0xFC, 0x0B],
+    "table.init" => [0xFC, 0x0C],
+    "elem.drop" => [0xFC, 0x0D],
+    "table.copy" => [0xFC, 0x0E]
   }
 
   def opcode(name), do: Map.fetch!(@opcodes, name)

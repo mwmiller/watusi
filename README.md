@@ -7,13 +7,15 @@ A native Elixir implementation for converting WebAssembly Text (WAT) to the WebA
 Watusi adheres to the following standards:
 
 - WebAssembly Core Specification 1.0 (Binary and Text formats).
+- WebAssembly Bulk Memory Operations Extension.
 - IEEE 754-2019 for floating-point representation.
 
 ## Features
 
 - S-Expression and Flat Syntax: Supports both folded and flat WAT formats.
 - Identifier Resolution: Resolves symbolic identifiers (e.g. $my_func, $my_var) to their numeric indices.
-- Section Support: Type, Import, Function, Table, Memory, Global, Export, Code, and Data sections.
+- Section Support: Type, Import, Function, Table, Memory, Global, Export, Start, Element, Code, Data, and Data Count sections.
+- Bulk Memory Operations: Support for memory.init, data.drop, memory.copy, memory.fill, table.init, elem.drop, and table.copy.
 - LEB128 Encoding: Uses the leb128 package for efficient integer encoding.
 - Verified Compatibility: Tested against the official wat2wasm tool.
 

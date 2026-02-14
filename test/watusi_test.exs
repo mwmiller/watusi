@@ -314,4 +314,22 @@ defmodule WatusiTest do
 
     assert_wasm_parity(wat)
   end
+
+  test "integration: bulk memory operations" do
+    wat = """
+    (module
+      (memory 1)
+      (data $d1 "hello")
+      (func (export "test")
+        i32.const 0
+        i32.const 0
+        i32.const 5
+        memory.init $d1
+        data.drop $d1
+      )
+    )
+    """
+
+    assert_wasm_parity(wat)
+  end
 end
