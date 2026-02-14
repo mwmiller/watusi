@@ -599,6 +599,7 @@ defmodule Watusi.Encoder do
     cond do
       is_mem_instr(name) -> encode_mem_immediates(name, args)
       is_control_flow(name) -> encode_control_flow_immediates(args)
+      name in ["memory.grow", "memory.size"] -> [0x00]
       name == "br_table" -> encode_br_table_immediates(args, labels)
       name == "call_indirect" -> encode_call_indirect_immediates(args, ctx)
       is_branch(name) or is_call(name) -> Enum.map(args, &encode_arg(name, &1, ctx, labels))

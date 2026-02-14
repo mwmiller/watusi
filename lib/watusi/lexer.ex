@@ -71,6 +71,13 @@ defmodule Watusi.Lexer do
 
   defp read_string(<<"\"", rest::binary>>, acc), do: {acc, rest}
 
+  defp read_string(<<"\\u{", rest::binary>>, acc) do
+    {hex, <<"}", rest::binary>>} = read_hex_until_brace(rest, <<>>)
+    codepoint = String.to_integer(hex, 16)
+    utf8 = <<codepoint::utf8>>
+    read_string(rest, <<acc::binary, utf8::binary>>)
+  end
+
   defp read_string(<<"\\", a, b, rest::binary>>, acc) when is_hex(a) and is_hex(b) do
     byte = String.to_integer(<<a, b>>, 16)
     read_string(rest, <<acc::binary, byte>>)
@@ -80,6 +87,12 @@ defmodule Watusi.Lexer do
     do: read_string(rest, <<acc::binary, escape(c)>>)
 
   defp read_string(<<c, rest::binary>>, acc), do: read_string(rest, <<acc::binary, c>>)
+
+  defp read_hex_until_brace(<<c, rest::binary>>, acc) when is_hex(c) do
+    read_hex_until_brace(rest, <<acc::binary, c>>)
+  end
+
+  defp read_hex_until_brace(rest, acc), do: {acc, rest}
 
   defp escape(?n), do: ?\n
   defp escape(?r), do: ?\r

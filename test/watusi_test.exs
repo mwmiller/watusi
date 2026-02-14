@@ -285,4 +285,33 @@ defmodule WatusiTest do
 
     assert_wasm_parity(wat)
   end
+
+  test "integration: memory grow and size" do
+    wat = """
+    (module
+      (memory 1)
+      (func (export "test") (param i32) (result i32)
+        memory.size
+        drop
+        local.get 0
+        memory.grow
+        drop
+        memory.size
+      )
+    )
+    """
+
+    assert_wasm_parity(wat)
+  end
+
+  test "integration: unicode escapes" do
+    wat = """
+    (module
+      (memory 1)
+      (data (i32.const 0) "rocket \\u{1f680}")
+    )
+    """
+
+    assert_wasm_parity(wat)
+  end
 end
