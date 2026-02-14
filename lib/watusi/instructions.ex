@@ -227,7 +227,7 @@ defmodule Watusi.Instructions do
     "f32x4.mul" => {:fd, 0xE6},
     "f32x4.div" => {:fd, 0xE7},
     "f32x4.convert_i32x4_u" => {:fd, 0xFB},
-    "f32x4.relaxed_min" => {:fd, 269},
+    "f32x4.relaxed_min" => {:fd, 0x10D},
     # Atomic Instructions (0xFE prefix)
     "memory.atomic.notify" => {:fe, 0x00},
     "memory.atomic.wait32" => {:fe, 0x01},
