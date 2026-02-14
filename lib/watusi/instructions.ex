@@ -19,8 +19,19 @@ defmodule Watusi.Instructions do
     "call_indirect" => 0x11,
     "return_call" => 0x12,
     "return_call_indirect" => 0x13,
+    # Reference types
+    "ref.null" => 0xD0,
+    "ref.is_null" => 0xD1,
+    "ref.func" => 0xD2,
     "drop" => 0x1A,
     "select" => 0x1B,
+    # Exception Handling
+    "try" => 0x06,
+    "catch" => 0x07,
+    "throw" => 0x08,
+    "rethrow" => 0x09,
+    "delegate" => 0x18,
+    "catch_all" => 0x19,
     "local.get" => 0x20,
     "local.set" => 0x21,
     "local.tee" => 0x22,
@@ -310,7 +321,8 @@ defmodule Watusi.Instructions do
     "v128" => 0x7B,
     "externref" => 0x6F,
     "funcref" => 0x70,
-    "anyfunc" => 0x70
+    "anyfunc" => 0x70,
+    "func" => 0x70
   }
 
   def valtype(name), do: Map.fetch!(@valtypes, name)

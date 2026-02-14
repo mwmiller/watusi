@@ -3,6 +3,7 @@ defmodule Watusi.Lexer do
   Lexer for WebAssembly Text format (WAT).
   """
 
+  # Valid characters for identifiers as per spec
   @id_chars ~c"0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!#$%&'*+-./:<=>?@\\^_`|~"
 
   @special_floats %{
@@ -14,51 +15,46 @@ defmodule Watusi.Lexer do
     "-nan" => :neg_nan
   }
 
-  # Guard to check if a character is valid for a WAT identifier.
   defguardp is_id_char(c) when c in @id_chars
 
-  # Guard to check if a character can start a WAT atom (keyword, instruction, or number).
+  # Atoms can be keywords, instructions, or numeric literals
   defguardp is_atom_start(c) when c in ?a..?z or c in ?0..?9 or c in [?., ?_, ?-, ?+]
 
   defguardp is_hex(c) when c in ?0..?9 or c in ?a..?f or c in ?A..?F
 
-  def tokenize(input) do
-    do_tokenize(input, [])
-  end
+  def tokenize(input), do: do_tokenize(input, [])
 
   defp do_tokenize(<<>>, acc), do: Enum.reverse(acc)
 
-  # Comments
+  # Standard line comments
   defp do_tokenize(<<";;", rest::binary>>, acc) do
     rest |> skip_line() |> do_tokenize(acc)
   end
 
+  # Nestable block comments
   defp do_tokenize(<<"(;", rest::binary>>, acc) do
     rest |> skip_block_comment(1) |> do_tokenize(acc)
   end
 
-  # Whitespace
+  # Standard whitespace separation
   defp do_tokenize(<<c, rest::binary>>, acc) when c in [?\s, ?\t, ?\n, ?\r] do
     do_tokenize(rest, acc)
   end
 
-  # Delimiters
   defp do_tokenize(<<"(", rest::binary>>, acc), do: do_tokenize(rest, [:lparen | acc])
   defp do_tokenize(<<")", rest::binary>>, acc), do: do_tokenize(rest, [:rparen | acc])
 
-  # Strings
   defp do_tokenize(<<"\"", rest::binary>>, acc) do
     {string, rest} = read_string(rest, <<>>)
     do_tokenize(rest, [{:string, string} | acc])
   end
 
-  # Identifiers
+  # Symbolic identifiers
   defp do_tokenize(<<"$", rest::binary>>, acc) do
     {id, rest} = read_identifier(rest, <<>>)
     do_tokenize(rest, [{:id, id} | acc])
   end
 
-  # Atoms (keywords, instructions, or numbers)
   defp do_tokenize(<<c, rest::binary>>, acc) when is_atom_start(c) do
     {atom, rest} = read_atom(<<c>>, rest)
     do_tokenize(rest, [classify_atom(atom) | acc])
@@ -80,6 +76,7 @@ defmodule Watusi.Lexer do
 
   defp read_string(<<"\"", rest::binary>>, acc), do: {acc, rest}
 
+  # Hex-encoded unicode escapes
   defp read_string(<<"\\u{", rest::binary>>, acc) do
     {hex, <<"}", rest::binary>>} = read_hex_until_brace(rest, <<>>)
     codepoint = String.to_integer(hex, 16)
@@ -87,6 +84,7 @@ defmodule Watusi.Lexer do
     read_string(rest, <<acc::binary, utf8::binary>>)
   end
 
+  # Literal byte escapes
   defp read_string(<<"\\", a, b, rest::binary>>, acc) when is_hex(a) and is_hex(b) do
     byte = String.to_integer(<<a, b>>, 16)
     read_string(rest, <<acc::binary, byte>>)
@@ -97,9 +95,8 @@ defmodule Watusi.Lexer do
 
   defp read_string(<<c, rest::binary>>, acc), do: read_string(rest, <<acc::binary, c>>)
 
-  defp read_hex_until_brace(<<c, rest::binary>>, acc) when is_hex(c) do
-    read_hex_until_brace(rest, <<acc::binary, c>>)
-  end
+  defp read_hex_until_brace(<<c, rest::binary>>, acc) when is_hex(c),
+    do: read_hex_until_brace(rest, <<acc::binary, c>>)
 
   defp read_hex_until_brace(rest, acc), do: {acc, rest}
 
@@ -110,15 +107,13 @@ defmodule Watusi.Lexer do
   defp escape(?"), do: ?"
   defp escape(c), do: c
 
-  defp read_identifier(<<c, rest::binary>>, acc) when is_id_char(c) do
-    read_identifier(rest, <<acc::binary, c>>)
-  end
+  defp read_identifier(<<c, rest::binary>>, acc) when is_id_char(c),
+    do: read_identifier(rest, <<acc::binary, c>>)
 
   defp read_identifier(rest, acc), do: {acc, rest}
 
-  defp read_atom(acc, <<c, rest::binary>>) when is_id_char(c) do
-    read_atom(<<acc::binary, c>>, rest)
-  end
+  defp read_atom(acc, <<c, rest::binary>>) when is_id_char(c),
+    do: read_atom(<<acc::binary, c>>, rest)
 
   defp read_atom(acc, rest), do: {acc, rest}
 
@@ -130,21 +125,23 @@ defmodule Watusi.Lexer do
   end
 
   defp do_classify_atom(atom) do
+    # Memory and table instructions often use kv-pair immediates
+    case atom do
+      <<"offset=", val::binary>> -> {:offset, parse_integer(val)}
+      <<"align=", val::binary>> -> {:align, parse_integer(val)}
+      other -> determine_numeric_type(other)
+    end
+  end
+
+  defp determine_numeric_type(atom) do
+    # We check for more specific/constrained numeric formats first
     cond do
       hex_float_string?(atom) -> {:float, parse_hex_float(atom)}
       nan_payload_string?(atom) -> {:float, parse_nan_payload(atom)}
       integer_string?(atom) -> {:int, parse_integer(atom)}
       float_string?(atom) -> {:float, parse_float(atom)}
-      match?(<<"offset=", _::binary>>, atom) -> {:offset, parse_kv_int(atom, "offset=")}
-      match?(<<"align=", _::binary>>, atom) -> {:align, parse_kv_int(atom, "align=")}
       true -> {:keyword, atom}
     end
-  end
-
-  defp parse_kv_int(atom, prefix) do
-    size = byte_size(prefix)
-    <<_::binary-size(size), val::binary>> = atom
-    parse_integer(val)
   end
 
   defp integer_string?(s) do
@@ -166,9 +163,7 @@ defmodule Watusi.Lexer do
     end
   end
 
-  defp float_string?(s) do
-    match?({_, ""}, Float.parse(s))
-  end
+  defp float_string?(s), do: match?({_, ""}, Float.parse(s))
 
   defp parse_float(s) do
     case s do
@@ -182,12 +177,11 @@ defmodule Watusi.Lexer do
     end
   end
 
-  defp hex_float_string?(s) do
-    s =~ ~r/^[+-]?0x([0-9a-fA-F]+\.?|[0-9a-fA-F]*\.[0-9a-fA-F]+)[pP][+-]?[0-9]+$/
-  end
+  defp hex_float_string?(s),
+    do: s =~ ~r/^[+-]?0x([0-9a-fA-F]+\.?|[0-9a-fA-F]*\.[0-9a-fA-F]+)[pP][+-]?[0-9]+$/
 
   defp parse_hex_float(s) do
-    # Format: [+-]?0x<significand>p<exponent>
+    # Hex floats are required for precise IEEE 754 representation
     {sign, rest} =
       case s do
         <<"-", tail::binary>> -> {-1, tail}
@@ -241,11 +235,11 @@ defmodule Watusi.Lexer do
     end)
   end
 
-  defp nan_payload_string?(s) do
-    s =~ ~r/^[+-]?nan:0x[0-9a-fA-F]+$/ or s =~ ~r/^[+-]?nan:[0-9]+$/
-  end
+  defp nan_payload_string?(s),
+    do: s =~ ~r/^[+-]?nan:0x[0-9a-fA-F]+$/ or s =~ ~r/^[+-]?nan:[0-9]+$/
 
   defp parse_nan_payload(s) do
+    # NaN payloads allow encoding diagnostic information in the float bit-pattern
     {sign, rest} =
       case s do
         <<"-", tail::binary>> -> {-1, tail}

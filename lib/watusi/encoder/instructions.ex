@@ -7,10 +7,11 @@ defmodule Watusi.Encoder.Instructions do
   alias Watusi.Instructions
   import Bitwise
 
-  @control_flow_ops ["block", "loop", "if"]
+  @control_flow_ops ["block", "loop", "if", "try"]
   @branch_ops ["br", "br_if", "br_table"]
   @call_ops ["call", "call_indirect", "return_call", "return_call_indirect"]
   @global_ops ["global.get", "global.set"]
+  @tag_ops ["throw", "rethrow"]
 
   @bulk_mem_ops [
     "memory.init",
@@ -228,6 +229,7 @@ defmodule Watusi.Encoder.Instructions do
   defguard is_simd(name) when name in @simd_ops
   defguard is_atomic(name) when name in @atomic_ops
   defguard is_table_op(name) when name in @table_ops
+  defguard is_tag_op(name) when name in @tag_ops
 
   def encode_instruction({:instr, name, args, labels}, ctx) do
     case Instructions.opcode(name) do
@@ -245,45 +247,61 @@ defmodule Watusi.Encoder.Instructions do
     end
   end
 
+  defp encode_immediates(name, args, _ctx, _labels) when is_atomic(name) do
+    # Atomic operations are specialized memory operations that sometimes
+    # require a 'dummy' memory index (currently always 0 in WASM Core 1.0)
+    encode_atomic_immediates(name, args)
+  end
+
   defp encode_immediates(name, args, _ctx, _labels) when is_mem_instr(name) do
+    # Standard memory operations (load/store) have alignment and offset immediates
     encode_mem_immediates(name, args)
   end
 
   defp encode_immediates(name, args, ctx, _labels) when is_control_flow(name) do
+    # block/loop/if/try require a blocktype immediate
     encode_control_flow_immediates(args, ctx)
   end
 
   defp encode_immediates(name, args, ctx, _labels) when is_bulk_mem(name) do
+    # Bulk memory instructions (copy/fill/init) have various index immediates
     encode_bulk_mem_immediates(name, args, ctx)
   end
 
   defp encode_immediates(name, args, _ctx, _labels) when is_simd(name) do
+    # SIMD instructions have specialized immediates (lanes, constants)
     encode_simd_immediates(name, args)
   end
 
   defp encode_immediates(name, args, ctx, _labels) when is_table_op(name) do
+    # table.get/set require a table index
     encode_table_immediates(name, args, ctx)
   end
 
-  defp encode_immediates(name, args, _ctx, _labels) when is_atomic(name) do
-    encode_atomic_immediates(name, args)
+  defp encode_immediates(name, args, ctx, _labels) when is_tag_op(name) do
+    # throw/rethrow require a tag index
+    encode_tag_immediates(name, args, ctx)
   end
 
   defp encode_immediates(name, _args, _ctx, _labels)
        when name in ["memory.grow", "memory.size"] do
+    # These always target memory 0 in Core 1.0
     [0x00]
   end
 
   defp encode_immediates(name, args, ctx, labels)
-       when is_branch(name) or is_call(name) or name == "br_table" do
+       when is_branch(name) or is_call(name) or name == "br_table" or name == "catch" do
+    # These target labels, functions, or tags
     encode_dynamic_immediates(name, args, ctx, labels)
   end
 
   defp encode_immediates(name, args, ctx, _labels) do
+    # Catch-all for instructions with simple immediates
     Enum.map(args, &encode_arg(name, &1, ctx, []))
   end
 
   defp encode_dynamic_immediates("br_table", args, _ctx, labels) do
+    # br_table expects a vector of targets and a default target
     indices =
       Enum.map(args, fn
         {:id, id} -> resolve_label(id, labels)
@@ -294,48 +312,51 @@ defmodule Watusi.Encoder.Instructions do
       [] ->
         raise "br_table needs target"
 
-      _other ->
-        {ts, [d]} = Enum.split(indices, -1)
+      list ->
+        {ts, [d]} = Enum.split(list, -1)
         [Common.encode_vector(ts, &Common.encode_u32/1), Common.encode_u32(d)]
     end
   end
 
   defp encode_dynamic_immediates("call_indirect", args, ctx, _labels) do
+    # call_indirect needs the type index and the table index (currently always 0)
     type_idx =
       case Enum.find(args, &match?([{:keyword, "type"}, _], &1)) do
         [{:keyword, "type"}, {:id, id}] -> resolve_type_id(id, ctx)
-        [{:keyword, "type"}, {:int, i} | _other] -> i
-        _other -> 0
+        [{:keyword, "type"}, {:int, i} | _] -> i
+        _ -> 0
       end
 
     [Common.encode_u32(type_idx), Common.encode_u32(0)]
   end
 
   defp encode_dynamic_immediates("return_call_indirect", args, ctx, _labels) do
+    # tail-call variant of call_indirect
     type_idx =
       case Enum.find(args, &match?([{:keyword, "type"}, _], &1)) do
         [{:keyword, "type"}, {:id, id}] -> resolve_type_id(id, ctx)
-        [{:keyword, "type"}, {:int, i} | _other] -> i
-        _other -> 0
+        [{:keyword, "type"}, {:int, i} | _] -> i
+        _ -> 0
       end
 
     [Common.encode_u32(type_idx), Common.encode_u32(0)]
   end
 
   defp encode_dynamic_immediates(name, args, ctx, labels)
-       when name in ["br", "br_if", "call", "return_call"] do
+       when name in ["br", "br_if", "call", "return_call", "catch"] do
     Enum.map(args, &encode_arg(name, &1, ctx, labels))
   end
 
   defp encode_control_flow_immediates(args, ctx) do
+    # Block types can be void (0x40), a single valtype, or a type index (signed LEB)
     case args do
       [{:int, bt}] ->
         [bt]
 
-      _other ->
+      _ ->
         results =
           args
-          |> Enum.filter(&match?([{:keyword, "result"} | _other], &1))
+          |> Enum.filter(&match?([{:keyword, "result"} | _], &1))
           |> Enum.flat_map(fn [{:keyword, "result"} | ts] -> ts end)
           |> Enum.map(fn {:keyword, type} -> type end)
 
@@ -347,6 +368,7 @@ defmodule Watusi.Encoder.Instructions do
             [Instructions.valtype(type)]
 
           types ->
+            # Multi-value blocks must reference a signature in the Type section
             sig = {[], types}
 
             idx =
@@ -358,25 +380,36 @@ defmodule Watusi.Encoder.Instructions do
     end
   end
 
-  defp encode_table_immediates(_name, args, ctx) do
+  defp encode_tag_immediates(_name, args, ctx) do
     case args do
-      [{:id, id} | _other] ->
-        [Common.encode_u32(resolve_index(id, ctx.tables, ctx.imports, "table"))]
+      [{:id, id} | _] ->
+        [Common.encode_u32(resolve_index(id, ctx.tags, ctx.imports, "tag"))]
 
-      [{:int, i} | _other] ->
+      [{:int, i} | _] ->
         [Common.encode_u32(i)]
 
-      _other ->
+      _ ->
         [Common.encode_u32(0)]
     end
   end
 
-  defp encode_atomic_immediates(name, args)
-       when name in ["memory.atomic.notify", "memory.atomic.wait32", "memory.atomic.wait64"] do
-    [0x00 | encode_mem_immediates(name, args)]
+  defp encode_table_immediates(_name, args, ctx) do
+    case args do
+      [{:id, id} | _] ->
+        [Common.encode_u32(resolve_index(id, ctx.tables, ctx.imports, "table"))]
+
+      [{:int, i} | _] ->
+        [Common.encode_u32(i)]
+
+      _ ->
+        [Common.encode_u32(0)]
+    end
   end
 
   defp encode_atomic_immediates(name, args) do
+    # Atomic instructions (load, store, RMW, notify, wait) all use standard
+    # memory immediates (alignment and offset). They do NOT encode a memory
+    # index in the current WASM specification.
     encode_mem_immediates(name, args)
   end
 
@@ -384,44 +417,37 @@ defmodule Watusi.Encoder.Instructions do
     encode_mem_immediates(name, args)
   end
 
-  defp encode_simd_immediates(name, args)
-       when name in ["i32x4.extract_lane", "i32x4.replace_lane"] do
-    case Enum.find(args, &match?({:int, _val}, &1)) do
+  defp encode_simd_immediates(name, args) when name in ["i32x4.extract_lane", "i32x4.replace_lane"] do
+    case Enum.find(args, &match?({:int, _}, &1)) do
       {:int, lane} -> [lane]
-      _other -> [0]
+      _ -> [0]
     end
   end
 
   defp encode_simd_immediates("v128.const", args) do
+    # v128.const can be initialized from various shapes (i8x16, i32x4, etc.)
     values =
       args
       |> Enum.filter(fn
         {:int, _} -> true
         {:float, _} -> true
-        _other -> false
+        _ -> false
       end)
 
     case values do
-      vals when length(vals) == 16 ->
-        Enum.map(vals, fn {:int, v} -> <<v::8>> end)
-
-      vals when length(vals) == 8 ->
-        Enum.map(vals, fn {:int, v} -> <<v::little-16>> end)
-
+      vals when length(vals) == 16 -> Enum.map(vals, fn {:int, v} -> <<v::8>> end)
+      vals when length(vals) == 8 -> Enum.map(vals, fn {:int, v} -> <<v::little-16>> end)
       vals when length(vals) == 4 ->
         Enum.map(vals, fn
           {:int, v} -> <<v::little-32>>
           {:float, v} -> <<v::float-little-32>>
         end)
-
       vals when length(vals) == 2 ->
         Enum.map(vals, fn
           {:int, v} -> <<v::little-64>>
           {:float, v} -> <<v::float-little-64>>
         end)
-
-      _other ->
-        raise "Invalid v128.const arguments: #{inspect(args)}"
+      other -> raise "Invalid v128.const arguments: #{inspect(other)}"
     end
     |> IO.iodata_to_binary()
     |> List.wrap()
@@ -501,25 +527,28 @@ defmodule Watusi.Encoder.Instructions do
     offset =
       case Enum.find(args, &match?({:offset, _}, &1)) do
         {:offset, v} -> v
-        _other -> 0
+        _ -> 0
       end
 
     align =
       case Enum.find(args, &match?({:align, _}, &1)) do
         {:align, v} -> to_log2(v)
-        _other -> natural_align(name)
+        _ -> natural_align(name)
       end
 
     [Common.encode_u32(align), Common.encode_u32(offset)]
   end
 
   defp natural_align(name) do
+    # Default alignment is determined by the size of the load/store operation.
+    # We check smaller/narrower widths first to correctly handle instructions
+    # like i64.load32_u where the operation size (32) is smaller than the type (64).
     cond do
       String.contains?(name, "v128") -> 4
       String.contains?(name, "8") -> 0
       String.contains?(name, "16") -> 1
-      String.contains?(name, "64") -> 3
       String.contains?(name, "32") -> 2
+      String.contains?(name, "64") -> 3
       String.contains?(name, "notify") -> 2
       true -> 0
     end
@@ -558,14 +587,21 @@ defmodule Watusi.Encoder.Instructions do
   defp encode_arg("f64.const", {:float, val}, _, _), do: encode_f64(val)
   defp encode_arg("f64.const", {:int, val}, _, _), do: encode_f64(val * 1.0)
 
-  defp encode_arg(name, {:id, id}, ctx, _labels) when name in ["call", "return_call"],
-    do: Common.encode_u32(resolve_index(id, ctx.funcs, ctx.imports, "func"))
+  defp encode_arg(name, {:id, id}, ctx, _labels)
+       when name in ["call", "return_call", "throw", "catch"],
+       do: Common.encode_u32(resolve_index(id, get_list_for_kind(name, ctx), ctx.imports, get_kind_for_op(name)))
 
   defp encode_arg(name, {:id, id}, ctx, _) when is_global_op(name),
     do: Common.encode_u32(resolve_index(id, ctx.globals, ctx.imports, "global"))
 
   defp encode_arg(_name, {:int, val}, _, _), do: Common.encode_u32(val)
   defp encode_arg(_name, {:id, id}, ctx, _), do: Common.encode_u32(Map.fetch!(ctx.local_map, id))
+
+  defp get_list_for_kind(name, ctx) when name in ["call", "return_call"], do: ctx.funcs
+  defp get_list_for_kind(name, ctx) when name in ["throw", "catch"], do: ctx.tags
+
+  defp get_kind_for_op(name) when name in ["call", "return_call"], do: "func"
+  defp get_kind_for_op(name) when name in ["throw", "catch"], do: "tag"
 
   defp wrap_i32(val) do
     <<signed::signed-32>> = <<val::unsigned-32>>
@@ -578,14 +614,17 @@ defmodule Watusi.Encoder.Instructions do
   end
 
   defp encode_sign(-1), do: 1
-  defp encode_sign(_other), do: 0
+  defp encode_sign(_), do: 0
 
-  defp resolve_label(id, labels),
-    do: Enum.find_index(labels, &(&1 == id)) || raise("Label not found: $#{id}")
+  defp resolve_label(id, labels) do
+    # Labels are resolved to their relative depth in the label stack
+    Enum.find_index(labels, &(&1 == id)) || raise("Label not found: $#{id}")
+  end
 
   defp resolve_type_id(id, ctx) do
+    # Multi-value blocks and call_indirect need to reference a signature in the Type section
     idx =
-      Enum.find_index(ctx.types, &match?([{:keyword, "type"}, {:id, ^id} | _other], &1)) ||
+      Enum.find_index(ctx.types, &match?([{:keyword, "type"}, {:id, ^id} | _], &1)) ||
         raise("Type not found: $#{id}")
 
     sig = Sections.extract_raw_signature(Enum.at(ctx.types, idx))
@@ -602,24 +641,29 @@ defmodule Watusi.Encoder.Instructions do
   defp encode_f64(:nan), do: <<0, 0, 0, 0, 0, 0, 248, 127>>
   defp encode_f64(f), do: <<f::float-little-size(64)>>
 
+  def resolve_index({:id, id}, list, imports, kind), do: resolve_index(id, list, imports, kind)
+
   def resolve_index(id, list, imports, kind) do
+    # Identifiers in WASM are resolved in an index space that is shared
+    # between imports and local definitions. Imports always come first.
     kind_imports =
       Enum.filter(imports, fn
-        [{:keyword, "import"}, _, _, [{:keyword, ^kind} | _other]] ->
+        [{:keyword, "import"}, _, _, [{:keyword, ^kind} | _]] ->
           true
 
         [{:keyword, ^kind} | rest] ->
           Enum.any?(rest, fn
-            [{:keyword, "import"} | _other] -> true
-            _other -> false
+            [{:keyword, "import"} | _] -> true
+            _ -> false
           end)
 
-        _other ->
+        _ ->
           false
       end)
 
     case find_id_in_imports(kind_imports, kind, id) do
       nil ->
+        # If not found in imports, check the local definitions
         length(kind_imports) +
           (find_local_index(list, kind, id) || raise("ID not found: #{kind} $#{id}"))
 
@@ -631,35 +675,35 @@ defmodule Watusi.Encoder.Instructions do
   defp find_id_in_imports(imports, kind, id) do
     Enum.find_index(imports, fn item ->
       case item do
-        [{:keyword, "import"}, _, _, [{:keyword, ^kind}, {:id, ^id} | _other]] ->
+        [{:keyword, "import"}, _, _, [{:keyword, ^kind}, {:id, ^id} | _]] ->
           true
 
         [{:keyword, ^kind}, {:id, ^id} | rest] ->
-          Enum.any?(rest, &match?([{:keyword, "import"} | _other], &1))
+          Enum.any?(rest, &match?([{:keyword, "import"} | _], &1))
 
-        _other ->
+        _ ->
           false
       end
     end)
   end
 
   defp find_local_index(ls, k, id),
-    do: Enum.find_index(ls, &match?([{:keyword, ^k}, {:id, ^id} | _other], &1))
+    do: Enum.find_index(ls, &match?([{:keyword, ^k}, {:id, ^id} | _], &1))
 
   defp resolve_data_index(id, data),
     do:
-      Enum.find_index(data, &match?([{:keyword, "data"}, {:id, ^id} | _other], &1)) ||
+      Enum.find_index(data, &match?([{:keyword, "data"}, {:id, ^id} | _], &1)) ||
         raise("Data ID not found: $#{id}")
 
   defp resolve_elem_index(id, elems),
     do:
-      Enum.find_index(elems, &match?([{:keyword, "elem"}, {:id, ^id} | _other], &1)) ||
+      Enum.find_index(elems, &match?([{:keyword, "elem"}, {:id, ^id} | _], &1)) ||
         raise("Elem ID not found: $#{id}")
 
   defp filter_immediates(args) do
     Enum.filter(args, fn
-      {type, _val} -> type in @immediate_types
-      _other -> false
+      {type, _} -> type in @immediate_types
+      _ -> false
     end)
   end
 
@@ -671,31 +715,29 @@ defmodule Watusi.Encoder.Instructions do
   def collect_args([{:keyword, shape} = arg | rest], acc) when shape in @simd_shapes,
     do: collect_args(rest, [arg | acc])
 
-  def collect_args([[{:keyword, "result"} | _other] = arg | rest], acc),
+  def collect_args([[{:keyword, "result"} | _] = arg | rest], acc),
     do: collect_args(rest, [arg | acc])
 
   def collect_args(rest, acc), do: {Enum.reverse(acc), rest}
 
   def build_local_map([{:keyword, "func"} | rest]) do
+    # Locals (params and local declarations) are indexed consecutively
     rest =
       case rest do
-        [{:id, _id} | tail] -> tail
-        rest -> rest
+        [{:id, _} | tail] -> tail
+        other -> other
       end
 
-    {_final_idx, map} =
+    {_, map} =
       Enum.reduce(rest, {0, %{}}, fn
         [{:keyword, kind} | ts], {idx, acc} when kind in ["param", "local"] ->
-          {new_idx, new_acc} =
-            Enum.reduce(ts, {idx, acc}, fn
-              {:id, id}, {i, a} -> {i, Map.put(a, id, i)}
-              {:keyword, _id}, {i, a} -> {i + 1, a}
-              _other, state -> state
-            end)
+          Enum.reduce(ts, {idx, acc}, fn
+            {:id, id}, {i, a} -> {i, Map.put(a, id, i)}
+            {:keyword, _}, {i, a} -> {i + 1, a}
+            _, state -> state
+          end)
 
-          {new_idx, new_acc}
-
-        _other, state ->
+        _, state ->
           state
       end)
 
@@ -705,73 +747,35 @@ defmodule Watusi.Encoder.Instructions do
   @rejected_metadata_kinds ["param", "local"]
   defguardp is_rejected_metadata(kind) when kind in @rejected_metadata_kinds
 
-  @metadata_kinds ["type", "param", "local", "export", "then", "else"]
+  @metadata_kinds ["type", "param", "local", "export", "then", "else", "try", "catch", "delegate", "catch_all", "do"]
   defguardp is_metadata(kind) when kind in @metadata_kinds
 
   def collect_instructions(rest, ctx, label_stack \\ []) do
+    # Instructions are collected into a flat list, resolving identifiers
+    # and nesting into a linear sequence of WASM opcodes.
     rest =
       case rest do
-        [{:id, _id} | tail] -> tail
-        rest -> rest
+        [{:id, _} | tail] -> tail
+        other -> other
       end
 
     rest
     |> Enum.reject(fn
-      [{:keyword, "export"}, _name] -> true
-      [{:keyword, k} | _other] when is_rejected_metadata(k) -> true
-      _other -> false
+      [{:keyword, "export"}, _] -> true
+      [{:keyword, k} | _] when is_rejected_metadata(k) -> true
+      _ -> false
     end)
     |> do_collect_instructions(ctx, [], label_stack)
   end
 
   defp do_collect_instructions([], _ctx, acc, _labels), do: Enum.reverse(acc)
 
-  defp do_collect_instructions([{:keyword, name} | rest], ctx, acc, labels)
-       when is_control_flow(name) do
-    # Flat Style control flow
-    {args, remaining} = collect_args(rest, [])
-
+  defp do_collect_instructions([[{:keyword, "try"} | args] | rest], ctx, acc, labels) do
+    # try blocks (from Exception Handling) have a complex try/do/catch structure
     {label, args} =
       case args do
         [{:id, id} | tail] -> {id, tail}
-        _other -> {nil, args}
-      end
-
-    new_labels = [label | labels]
-
-    do_collect_instructions(remaining, ctx, [{:instr, name, args, labels} | acc], new_labels)
-  end
-
-  defp do_collect_instructions([{:keyword, "end"} | rest], ctx, acc, labels) do
-    new_labels =
-      case labels do
-        [_head | tail] -> tail
-        [] -> []
-      end
-
-    do_collect_instructions(rest, ctx, [{:instr, "end", [], labels} | acc], new_labels)
-  end
-
-  defp do_collect_instructions([[{:keyword, name} | _other] | rest], ctx, acc, labels)
-       when is_metadata(name) do
-    do_collect_instructions(rest, ctx, acc, labels)
-  end
-
-  defp do_collect_instructions([[{:keyword, "result"} | _other] | rest], ctx, acc, labels) do
-    do_collect_instructions(rest, ctx, acc, labels)
-  end
-
-  defp do_collect_instructions([{:keyword, name} | rest], ctx, acc, labels) do
-    {args, remaining} = collect_args(rest, [])
-    do_collect_instructions(remaining, ctx, [{:instr, name, args, labels} | acc], labels)
-  end
-
-  defp do_collect_instructions([[{:keyword, name} | args] | rest], ctx, acc, labels)
-       when is_control_flow(name) do
-    {label, args} =
-      case args do
-        [{:id, id} | tail] -> {id, tail}
-        _other -> {nil, args}
+        other -> {nil, other}
       end
 
     new_labels = [label | labels]
@@ -781,22 +785,53 @@ defmodule Watusi.Encoder.Instructions do
     blocktype =
       case blocktype_list do
         [bt] -> bt
-        _other -> Enum.at(blocktype_list, 0)
+        list -> hd(list)
+      end
+
+    inner_rest = Enum.reject(args, &match?([{:keyword, "result"} | _], &1))
+    inner_instrs = collect_try_instrs(inner_rest, ctx, new_labels)
+
+    new_acc =
+      [{:instr, "end", [], labels}] ++
+        Enum.reverse(inner_instrs) ++
+        [{:instr, "try", [{:int, blocktype}], labels}] ++ acc
+
+    do_collect_instructions(rest, ctx, new_acc, labels)
+  end
+
+  defp do_collect_instructions([[{:keyword, name} | args] | rest], ctx, acc, labels)
+       when is_control_flow(name) do
+    # Folded-style control flow: (block $id (result i32) ...)
+    {label, args} =
+      case args do
+        [{:id, id} | tail] -> {id, tail}
+        other -> {nil, other}
+      end
+
+    new_labels = [label | labels]
+
+    blocktype_list = encode_control_flow_immediates(args, ctx)
+
+    blocktype =
+      case blocktype_list do
+        [bt] -> bt
+        list -> hd(list)
       end
 
     inner_rest =
       Enum.reject(args, fn
-        [{:keyword, "result"} | _other] -> true
-        _other -> false
+        [{:keyword, "result"} | _] -> true
+        _ -> false
       end)
 
     {inner_instrs, cond_instrs} =
       case name do
         "if" ->
+          # if blocks have an optional condition sub-block when folded
           {collect_if_instrs(inner_rest, ctx, new_labels),
            collect_if_condition(inner_rest, ctx, labels)}
 
-        _other ->
+        _ ->
           {collect_instructions(inner_rest, ctx, new_labels), []}
       end
 
@@ -808,7 +843,57 @@ defmodule Watusi.Encoder.Instructions do
     do_collect_instructions(rest, ctx, new_acc, labels)
   end
 
+  defp do_collect_instructions([{:keyword, name} | rest], ctx, acc, labels)
+       when is_control_flow(name) do
+    # Flat-style control flow: block $id ... end
+    {args, remaining} = collect_args(rest, [])
+
+    {label, args} =
+      case args do
+        [{:id, id} | tail] -> {id, tail}
+        other -> {nil, other}
+      end
+
+    new_labels = [label | labels]
+
+    blocktype_list = encode_control_flow_immediates(args, ctx)
+
+    blocktype =
+      case blocktype_list do
+        [bt] -> bt
+        list -> hd(list)
+      end
+
+    do_collect_instructions(remaining, ctx, [{:instr, name, [{:int, blocktype}], labels} | acc], new_labels)
+  end
+
+  defp do_collect_instructions([{:keyword, "end"} | rest], ctx, acc, labels) do
+    new_labels =
+      case labels do
+        [_ | tail] -> tail
+        [] -> []
+      end
+
+    do_collect_instructions(rest, ctx, [{:instr, "end", [], labels} | acc], new_labels)
+  end
+
+  defp do_collect_instructions([[{:keyword, name} | _] | rest], ctx, acc, labels)
+       when is_metadata(name) do
+    do_collect_instructions(rest, ctx, acc, labels)
+  end
+
+  defp do_collect_instructions([[{:keyword, "result"} | _] | rest], ctx, acc, labels) do
+    do_collect_instructions(rest, ctx, acc, labels)
+  end
+
+  defp do_collect_instructions([{:keyword, name} | rest], ctx, acc, labels) do
+    # Standard flat instruction: i32.add
+    {args, remaining} = collect_args(rest, [])
+    do_collect_instructions(remaining, ctx, [{:instr, name, args, labels} | acc], labels)
+  end
+
   defp do_collect_instructions([[{:keyword, name} | args] | rest], ctx, acc, labels) do
+    # Folded instruction: (i32.add (i32.const 1) (i32.const 2))
     new_acc =
       [
         {:instr, name, filter_immediates(args), labels}
@@ -818,42 +903,65 @@ defmodule Watusi.Encoder.Instructions do
     do_collect_instructions(rest, ctx, new_acc, labels)
   end
 
-  defp do_collect_instructions([_other | rest], ctx, acc, labels),
+  defp do_collect_instructions([_ | rest], ctx, acc, labels),
     do: do_collect_instructions(rest, ctx, acc, labels)
 
   defp collect_if_condition(inner_rest, ctx, labels),
     do:
       Enum.reject(inner_rest, fn
-        [{:keyword, k} | _other] when k in ["then", "else"] -> true
-        _other -> false
+        [{:keyword, k} | _] when k in ["then", "else"] -> true
+        _ -> false
       end)
       |> collect_instructions(ctx, labels)
 
   defp collect_if_instrs(inner_rest, ctx, labels) do
     then_body =
       inner_rest
-      |> Enum.find(&match?([{:keyword, "then"} | _other], &1))
+      |> Enum.find(&match?([{:keyword, "then"} | _], &1))
       |> case do
         [{:keyword, "then"} | body] -> collect_instructions(body, ctx, labels)
-        _other -> []
+        _ -> []
       end
 
     else_body =
       inner_rest
-      |> Enum.find(&match?([{:keyword, "else"} | _other], &1))
+      |> Enum.find(&match?([{:keyword, "else"} | _], &1))
       |> case do
         [{:keyword, "else"} | body] ->
           [{:instr, "else", [], labels} | collect_instructions(body, ctx, labels)]
 
-        _other ->
+        _ ->
           []
       end
 
     then_body ++ else_body
   end
 
+  defp collect_try_instrs(inner_rest, ctx, labels) do
+    do_body =
+      inner_rest
+      |> Enum.find(&match?([{:keyword, "do"} | _], &1))
+      |> case do
+        [{:keyword, "do"} | body] -> collect_instructions(body, ctx, labels)
+        _ -> []
+      end
+
+    catches =
+      inner_rest
+      |> Enum.filter(&match?([{:keyword, k} | _] when k in ["catch", "catch_all"], &1))
+      |> Enum.flat_map(fn
+        [{:keyword, "catch"}, tag_idx | body] ->
+          [{:instr, "catch", [tag_idx], labels} | collect_instructions(body, ctx, labels)]
+
+        [{:keyword, "catch_all"} | body] ->
+          [{:instr, "catch_all", [], labels} | collect_instructions(body, ctx, labels)]
+      end)
+
+    do_body ++ catches
+  end
+
   defp collect_folded_args(args, ctx, labels),
     do:
-      Enum.filter(args, &match?([{:keyword, _id} | _other], &1))
+      Enum.filter(args, &match?([{:keyword, _} | _], &1))
       |> Enum.flat_map(&collect_instructions([&1], ctx, labels))
 end
