@@ -10,11 +10,11 @@ defmodule Watusi do
   @doc """
   Converts WAT source (string or IOData) to WASM binary.
   """
-  def to_wasm(source) do
+  def to_wasm(source, opts \\ []) do
     source
     |> IO.iodata_to_binary()
     |> Lexer.tokenize()
     |> Parser.parse()
-    |> Encoder.encode()
+    |> Encoder.encode(opts)
   end
 end

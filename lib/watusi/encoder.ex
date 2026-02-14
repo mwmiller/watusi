@@ -42,10 +42,74 @@ defmodule Watusi.Encoder do
     "i32.store8",
     "i32.store16",
     "i64.store8",
-    "i64.store16",
-    "i64.store32",
     "v128.load",
-    "v128.store"
+    "v128.store",
+    "i32.atomic.load",
+    "i64.atomic.load",
+    "i32.atomic.load8_u",
+    "i32.atomic.load16_u",
+    "i64.atomic.load8_u",
+    "i64.atomic.load16_u",
+    "i64.atomic.load32_u",
+    "i32.atomic.store",
+    "i64.atomic.store",
+    "i32.atomic.store8",
+    "i32.atomic.store16",
+    "i64.atomic.store8",
+    "i64.atomic.store16",
+    "i64.atomic.store32",
+    "i32.atomic.rmw.add",
+    "i64.atomic.rmw.add",
+    "i32.atomic.rmw8.add_u",
+    "i32.atomic.rmw16.add_u",
+    "i64.atomic.rmw8.add_u",
+    "i64.atomic.rmw16.add_u",
+    "i64.atomic.rmw32.add_u",
+    "i32.atomic.rmw.sub",
+    "i64.atomic.rmw.sub",
+    "i32.atomic.rmw8.sub_u",
+    "i32.atomic.rmw16.sub_u",
+    "i64.atomic.rmw8.sub_u",
+    "i64.atomic.rmw16.sub_u",
+    "i64.atomic.rmw32.sub_u",
+    "i32.atomic.rmw.and",
+    "i64.atomic.rmw.and",
+    "i32.atomic.rmw8.and_u",
+    "i32.atomic.rmw16.and_u",
+    "i64.atomic.rmw8.and_u",
+    "i64.atomic.rmw16.and_u",
+    "i64.atomic.rmw32.and_u",
+    "i32.atomic.rmw.or",
+    "i64.atomic.rmw.or",
+    "i32.atomic.rmw8.or_u",
+    "i32.atomic.rmw16.or_u",
+    "i64.atomic.rmw8.or_u",
+    "i64.atomic.rmw16.or_u",
+    "i64.atomic.rmw32.or_u",
+    "i32.atomic.rmw.xor",
+    "i64.atomic.rmw.xor",
+    "i32.atomic.rmw8.xor_u",
+    "i32.atomic.rmw16.xor_u",
+    "i64.atomic.rmw8.xor_u",
+    "i64.atomic.rmw16.xor_u",
+    "i64.atomic.rmw32.xor_u",
+    "i32.atomic.rmw.xchg",
+    "i64.atomic.rmw.xchg",
+    "i32.atomic.rmw8.xchg_u",
+    "i32.atomic.rmw16.xchg_u",
+    "i64.atomic.rmw8.xchg_u",
+    "i64.atomic.rmw16.xchg_u",
+    "i64.atomic.rmw32.xchg_u",
+    "i32.atomic.rmw.cmpxchg",
+    "i64.atomic.rmw.cmpxchg",
+    "i32.atomic.rmw8.cmpxchg_u",
+    "i32.atomic.rmw16.cmpxchg_u",
+    "i64.atomic.rmw8.cmpxchg_u",
+    "i64.atomic.rmw16.cmpxchg_u",
+    "i64.atomic.rmw32.cmpxchg_u",
+    "memory.atomic.notify",
+    "memory.atomic.wait32",
+    "memory.atomic.wait64"
   ]
 
   @simd_ops [
@@ -64,6 +128,75 @@ defmodule Watusi.Encoder do
     "f32x4.add"
   ]
 
+  @atomic_ops [
+    "memory.atomic.notify",
+    "memory.atomic.wait32",
+    "memory.atomic.wait64",
+    "i32.atomic.load",
+    "i64.atomic.load",
+    "i32.atomic.load8_u",
+    "i32.atomic.load16_u",
+    "i64.atomic.load8_u",
+    "i64.atomic.load16_u",
+    "i64.atomic.load32_u",
+    "i32.atomic.store",
+    "i64.atomic.store",
+    "i32.atomic.store8",
+    "i32.atomic.store16",
+    "i64.atomic.store8",
+    "i64.atomic.store16",
+    "i64.atomic.store32",
+    "i32.atomic.rmw.add",
+    "i64.atomic.rmw.add",
+    "i32.atomic.rmw8.add_u",
+    "i32.atomic.rmw16.add_u",
+    "i64.atomic.rmw8.add_u",
+    "i64.atomic.rmw16.add_u",
+    "i64.atomic.rmw32.add_u",
+    "i32.atomic.rmw.sub",
+    "i64.atomic.rmw.sub",
+    "i32.atomic.rmw8.sub_u",
+    "i32.atomic.rmw16.sub_u",
+    "i64.atomic.rmw8.sub_u",
+    "i64.atomic.rmw16.sub_u",
+    "i64.atomic.rmw32.sub_u",
+    "i32.atomic.rmw.and",
+    "i64.atomic.rmw.and",
+    "i32.atomic.rmw8.and_u",
+    "i32.atomic.rmw16.and_u",
+    "i64.atomic.rmw8.and_u",
+    "i64.atomic.rmw16.and_u",
+    "i64.atomic.rmw32.and_u",
+    "i32.atomic.rmw.or",
+    "i64.atomic.rmw.or",
+    "i32.atomic.rmw8.or_u",
+    "i32.atomic.rmw16.or_u",
+    "i64.atomic.rmw8.or_u",
+    "i64.atomic.rmw16.or_u",
+    "i64.atomic.rmw32.or_u",
+    "i32.atomic.rmw.xor",
+    "i64.atomic.rmw.xor",
+    "i32.atomic.rmw8.xor_u",
+    "i32.atomic.rmw16.xor_u",
+    "i64.atomic.rmw8.xor_u",
+    "i64.atomic.rmw16.xor_u",
+    "i64.atomic.rmw32.xor_u",
+    "i32.atomic.rmw.xchg",
+    "i64.atomic.rmw.xchg",
+    "i32.atomic.rmw8.xchg_u",
+    "i32.atomic.rmw16.xchg_u",
+    "i64.atomic.rmw8.xchg_u",
+    "i64.atomic.rmw16.xchg_u",
+    "i64.atomic.rmw32.xchg_u",
+    "i32.atomic.rmw.cmpxchg",
+    "i64.atomic.rmw.cmpxchg",
+    "i32.atomic.rmw8.cmpxchg_u",
+    "i32.atomic.rmw16.cmpxchg_u",
+    "i64.atomic.rmw8.cmpxchg_u",
+    "i64.atomic.rmw16.cmpxchg_u",
+    "i64.atomic.rmw32.cmpxchg_u"
+  ]
+
   # Guards for instruction categories
   defguardp is_control_flow(name) when name in @control_flow_ops
   defguardp is_branch(name) when name in @branch_ops
@@ -76,26 +209,32 @@ defmodule Watusi.Encoder do
 
   defguardp is_simd(name) when name in @simd_ops
 
-  def encode([[{:keyword, "module"} | body]]) do
+  defguardp is_atomic(name) when name in @atomic_ops
+
+  def encode([[{:keyword, "module"} | rest]], opts \\ []) do
+    debug_names = Keyword.get(opts, :debug_names, false)
+
+    module_id =
+      case rest do
+        [{:id, id} | _other] -> id
+        _other -> nil
+      end
+
+    body =
+      case rest do
+        [{:id, _id} | tail] -> tail
+        rest -> rest
+      end
+
     header = <<0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00>>
+
     sections = group_sections(body)
 
-    # Counts for index resolution
-    counts = %{
-      func: count_imports(sections.imports, "func"),
-      table: count_imports(sections.imports, "table"),
-      memory: count_imports(sections.imports, "memory"),
-      global: count_imports(sections.imports, "global")
-    }
+    counts = resolve_counts(sections.imports)
 
     exports = collect_exports(body, counts)
-    type_sigs = Enum.map(sections.types, &extract_raw_signature/1)
 
-    signatures =
-      (collect_import_signatures(sections.imports, sections.types) ++
-         Enum.map(sections.funcs, &extract_signature(&1, sections.types)) ++
-         type_sigs)
-      |> Enum.uniq()
+    signatures = prepare_signatures(sections)
 
     ctx = %{
       local_map: %{},
@@ -110,20 +249,23 @@ defmodule Watusi.Encoder do
       memories: sections.memories
     }
 
+    # Prepare specific sections
+
     elem_section = encode_section(9, encode_vector(sections.elems, &encode_elem(&1, ctx)))
 
-    # Only include Data Count section if there are bulk memory instructions or passive data segments
-    needs_data_count =
-      Enum.any?(sections.data, &passive_data?(&1)) or has_bulk_mem_instr?(sections.funcs)
-
-    data_count_section =
-      case {needs_data_count, sections.data} do
-        {true, [_ | _] = list} -> encode_section(12, encode_u32(length(list)))
-        _other -> []
-      end
+    data_count_section = prepare_data_count_section(sections, needs_data_count?(sections))
 
     code_section = encode_section(10, encode_vector(sections.funcs, &encode_func_body(&1, ctx)))
+
     data_section = encode_section(11, encode_vector(sections.data, &encode_data(&1, ctx)))
+
+    # Custom Name Section
+
+    name_section =
+      case debug_names do
+        true -> encode_name_section(module_id, sections, counts)
+        false -> []
+      end
 
     IO.iodata_to_binary([
       header,
@@ -138,6 +280,7 @@ defmodule Watusi.Encoder do
           sections.funcs,
           fn f ->
             sig = extract_signature(f, sections.types)
+
             Enum.find_index(signatures, &(&1 == sig))
           end,
           &encode_u32/1
@@ -151,9 +294,41 @@ defmodule Watusi.Encoder do
       elem_section,
       data_count_section,
       code_section,
-      data_section
+      data_section,
+      name_section
     ])
   end
+
+  defp resolve_counts(imports) do
+    %{
+      func: count_imports(imports, "func"),
+      table: count_imports(imports, "table"),
+      memory: count_imports(imports, "memory"),
+      global: count_imports(imports, "global")
+    }
+  end
+
+  defp prepare_signatures(sections) do
+    type_sigs = Enum.map(sections.types, &extract_raw_signature/1)
+
+    (collect_import_signatures(sections.imports, sections.types) ++
+       Enum.map(sections.funcs, &extract_signature(&1, sections.types)) ++
+       type_sigs)
+    |> Enum.uniq()
+  end
+
+  defp needs_data_count?(sections) do
+    Enum.any?(sections.data, &passive_data?(&1)) or has_bulk_mem_instr?(sections.funcs)
+  end
+
+  defp prepare_data_count_section(sections, true) do
+    case sections.data do
+      [_ | _] = list -> encode_section(12, encode_u32(length(list)))
+      _other -> []
+    end
+  end
+
+  defp prepare_data_count_section(_sections, false), do: []
 
   defp passive_data?([{:keyword, "data"} | rest]) do
     # A data segment is passive if it doesn't have an offset expression
@@ -348,16 +523,20 @@ defmodule Watusi.Encoder do
   end
 
   defp encode_limits(tokens) do
+    is_shared = Enum.any?(tokens, &match?({:keyword, "shared"}, &1))
+
     tokens =
       Enum.filter(tokens, fn
         {:int, _} -> true
         _ -> false
       end)
 
-    case tokens do
-      [{:int, min}] -> [0x00, encode_u32(min)]
-      [{:int, min}, {:int, max}] -> [0x01, encode_u32(min), encode_u32(max)]
-      _ -> raise "Invalid limits: #{inspect(tokens)}"
+    case {tokens, is_shared} do
+      {[{:int, min}], true} -> [0x03, encode_u32(min), encode_u32(min)]
+      {[{:int, min}], false} -> [0x00, encode_u32(min)]
+      {[{:int, min}, {:int, max}], true} -> [0x03, encode_u32(min), encode_u32(max)]
+      {[{:int, min}, {:int, max}], false} -> [0x01, encode_u32(min), encode_u32(max)]
+      _other -> raise "Invalid limits: #{inspect(tokens)}"
     end
   end
 
@@ -739,6 +918,7 @@ defmodule Watusi.Encoder do
     case Instructions.opcode(name) do
       {:fc, op} -> [0xFC, LEB128.encode_unsigned(op) | encode_immediates(name, args, ctx, labels)]
       {:fd, op} -> [0xFD, LEB128.encode_unsigned(op) | encode_immediates(name, args, ctx, labels)]
+      {:fe, op} -> [0xFE, LEB128.encode_unsigned(op) | encode_immediates(name, args, ctx, labels)]
       opcode -> [opcode | encode_immediates(name, args, ctx, labels)]
     end
   end
@@ -757,6 +937,10 @@ defmodule Watusi.Encoder do
 
   defp encode_immediates(name, args, _ctx, _labels) when is_simd(name) do
     encode_simd_immediates(name, args)
+  end
+
+  defp encode_immediates(name, args, _ctx, _labels) when is_atomic(name) do
+    encode_atomic_immediates(name, args)
   end
 
   defp encode_immediates(name, _args, _ctx, _labels)
@@ -816,6 +1000,16 @@ defmodule Watusi.Encoder do
           _ -> [0x40]
         end
     end
+  end
+
+  defp encode_atomic_immediates(name, args)
+       when name in ["memory.atomic.notify", "memory.atomic.wait32", "memory.atomic.wait64"] do
+    # These also take a memidx immediate which is always 0 in WASM 1.0 threads
+    [0x00 | encode_mem_immediates(name, args)]
+  end
+
+  defp encode_atomic_immediates(name, args) do
+    encode_mem_immediates(name, args)
   end
 
   defp encode_simd_immediates(name, args) when name in ["v128.load", "v128.store"] do
@@ -961,12 +1155,12 @@ defmodule Watusi.Encoder do
   defp natural_align(name) do
     cond do
       String.contains?(name, "v128") -> 4
-      String.contains?(name, "8") -> 0
-      String.contains?(name, "16") -> 1
-      String.contains?(name, "load32") or String.contains?(name, "store32") -> 2
       String.contains?(name, "64") -> 3
       String.contains?(name, "32") -> 2
-      true -> 0
+      String.contains?(name, "16") -> 1
+      String.contains?(name, "8") -> 0
+      String.contains?(name, "notify") -> 2
+      _other -> 0
     end
   end
 
@@ -1092,6 +1286,85 @@ defmodule Watusi.Encoder do
     do:
       Enum.find_index(elems, &match?([{:keyword, "elem"}, {:id, ^id} | _], &1)) ||
         raise("Elem ID not found: $#{id}")
+
+  defp encode_name_section(nil, %{imports: [], funcs: []}, _counts), do: []
+
+  defp encode_name_section(module_id, sections, counts) do
+    # Subsection 0: Module Name
+    sub0 =
+      case module_id do
+        nil -> []
+        id -> encode_name_subsection(0, encode_string(id))
+      end
+
+    # Subsection 1: Function Names
+    func_names = collect_func_names(sections.imports, sections.funcs)
+
+    sub1 =
+      case func_names do
+        [] -> []
+        list -> encode_name_subsection(1, encode_vector(list, &encode_name_assoc/1))
+      end
+
+    # Subsection 2: Local Names
+    local_names = collect_local_names(sections.funcs, counts.func)
+
+    sub2 =
+      case local_names do
+        [] -> []
+        list -> encode_name_subsection(2, encode_vector(list, &encode_indirect_name_assoc/1))
+      end
+
+    payload = [encode_string("name"), sub0, sub1, sub2]
+    encode_section(0, payload)
+  end
+
+  defp encode_name_subsection(id, payload),
+    do: [id, encode_u32(IO.iodata_length(payload)), payload]
+
+  defp encode_name_assoc({idx, name}), do: [encode_u32(idx), encode_string(name)]
+
+  defp encode_indirect_name_assoc({func_idx, map}) do
+    [encode_u32(func_idx), encode_vector(map, &encode_name_assoc/1)]
+  end
+
+  defp collect_func_names(imports, funcs) do
+    import_names =
+      imports
+      |> Enum.with_index()
+      |> Enum.flat_map(fn
+        {[{:keyword, "import"}, _, _, [{:keyword, "func"}, {:id, id} | _]], idx} -> [{idx, id}]
+        _other -> []
+      end)
+
+    import_count = length(imports)
+
+    local_names =
+      funcs
+      |> Enum.with_index()
+      |> Enum.flat_map(fn
+        {[{:keyword, "func"}, {:id, id} | _], idx} -> [{import_count + idx, id}]
+        _other -> []
+      end)
+
+    import_names ++ local_names
+  end
+
+  defp collect_local_names(funcs, import_func_count) do
+    funcs
+    |> Enum.with_index()
+    |> Enum.flat_map(fn {[{:keyword, "func"} | _] = func, idx} ->
+      map = build_local_map(func)
+
+      case Map.to_list(map) do
+        [] ->
+          []
+
+        list ->
+          [{import_func_count + idx, Enum.map(list, fn {id, i} -> {i, id} end) |> Enum.sort()}]
+      end
+    end)
+  end
 
   defp encode_section(_id, payload) when payload in [[], [<<0>>, []]], do: []
   defp encode_section(id, p), do: [id, encode_u32(IO.iodata_length(p)), p]

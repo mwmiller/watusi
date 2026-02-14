@@ -363,20 +363,68 @@ defmodule WatusiTest do
     assert_wasm_parity(wat)
   end
 
-    for path <- Path.wildcard("test/samples/*.wat") do
+  for path <- Path.wildcard("test/samples/*.wat") do
+    @sample_path path
 
-      @sample_path path
+    @sample_name Path.basename(path, ".wat")
 
-      @sample_name Path.basename(path, ".wat")
+    test "integration: sample #{@sample_name}.wat" do
+      @sample_path |> File.read!() |> assert_wasm_parity(@sample_name)
+    end
+  end
 
-  
+  test "integration: custom name section" do
+    wat = """
 
-      test "integration: sample #{@sample_name}.wat" do
 
-        @sample_path |> File.read!() |> assert_wasm_parity(@sample_name)
 
+    (module $my_module
+
+
+
+      (func $add (param $a i32) (param $b i32) (result i32)
+
+
+
+        local.get $a
+
+
+
+        local.get $b
+
+
+
+        i32.add)
+
+
+
+    )
+
+
+
+    """
+
+    watusi_wasm = Watusi.to_wasm(wat, debug_names: true)
+
+    # Use a modified compilation command for this specific test
+
+    wat_path = "test_name.wat"
+
+    wasm_path = "test_name.wasm"
+
+    File.write!(wat_path, wat)
+
+    expected_wasm =
+      try do
+        {_output, 0} = System.cmd("wat2wasm", ["--debug-names", wat_path, "-o", wasm_path])
+
+        File.read!(wasm_path)
+      after
+        File.rm(wat_path)
+
+        File.rm(wasm_path)
       end
 
-    end
-
+    assert watusi_wasm == expected_wasm
   end
+end

@@ -25,7 +25,10 @@ defmodule Watusi.TestHelper do
     File.write!(path, binary)
 
     try do
-      case System.cmd("wasm-validate", [path]) do
+      case System.cmd("wasm-validate", [
+             "--enable-all",
+             path
+           ]) do
         {_output, 0} -> :ok
         {output, _} -> flunk("Generated WASM failed wasm-validate:
 #{output}")
@@ -39,7 +42,12 @@ defmodule Watusi.TestHelper do
     File.write!(wat_path, wat)
 
     try do
-      case System.cmd("wat2wasm", [wat_path, "-o", wasm_path]) do
+      case System.cmd("wat2wasm", [
+             "--enable-all",
+             wat_path,
+             "-o",
+             wasm_path
+           ]) do
         {_output, 0} ->
           File.read!(wasm_path)
 
