@@ -5,49 +5,56 @@ defmodule Watusi.Encoder do
   alias Watusi.Instructions
   import Bitwise
 
+  @control_flow_ops ["block", "loop", "if"]
+  @branch_ops ["br", "br_if", "br_table"]
+  @call_ops ["call", "call_indirect"]
+  @global_ops ["global.get", "global.set"]
+
+  @bulk_mem_ops [
+    "memory.init",
+    "data.drop",
+    "memory.copy",
+    "memory.fill",
+    "table.init",
+    "elem.drop",
+    "table.copy"
+  ]
+
+  @memory_ops [
+    "i32.load",
+    "i64.load",
+    "f32.load",
+    "f64.load",
+    "i32.store",
+    "i64.store",
+    "f32.store",
+    "f64.store",
+    "i32.load8_s",
+    "i32.load8_u",
+    "i32.load16_s",
+    "i32.load16_u",
+    "i64.load8_s",
+    "i64.load8_u",
+    "i64.load16_s",
+    "i64.load16_u",
+    "i64.load32_s",
+    "i64.load32_u",
+    "i32.store8",
+    "i32.store16",
+    "i64.store8",
+    "i64.store16",
+    "i64.store32"
+  ]
+
   # Guards for instruction categories
-  defguardp is_control_flow(name) when name in ["block", "loop", "if"]
-  defguardp is_branch(name) when name in ["br", "br_if", "br_table"]
-  defguardp is_call(name) when name in ["call", "call_indirect"]
-  defguardp is_global_op(name) when name in ["global.get", "global.set"]
+  defguardp is_control_flow(name) when name in @control_flow_ops
+  defguardp is_branch(name) when name in @branch_ops
+  defguardp is_call(name) when name in @call_ops
+  defguardp is_global_op(name) when name in @global_ops
 
-  defguardp is_bulk_mem(name)
-            when name in [
-                   "memory.init",
-                   "data.drop",
-                   "memory.copy",
-                   "memory.fill",
-                   "table.init",
-                   "elem.drop",
-                   "table.copy"
-                 ]
+  defguardp is_bulk_mem(name) when name in @bulk_mem_ops
 
-  defguardp is_mem_instr(name)
-            when name in [
-                   "i32.load",
-                   "i64.load",
-                   "f32.load",
-                   "f64.load",
-                   "i32.store",
-                   "i64.store",
-                   "f32.store",
-                   "f64.store",
-                   "i32.load8_s",
-                   "i32.load8_u",
-                   "i32.load16_s",
-                   "i32.load16_u",
-                   "i64.load8_s",
-                   "i64.load8_u",
-                   "i64.load16_s",
-                   "i64.load16_u",
-                   "i64.load32_s",
-                   "i64.load32_u",
-                   "i32.store8",
-                   "i32.store16",
-                   "i64.store8",
-                   "i64.store16",
-                   "i64.store32"
-                 ]
+  defguardp is_mem_instr(name) when name in @memory_ops
 
   def encode([[{:keyword, "module"} | body]]) do
     header = <<0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00>>
@@ -92,7 +99,7 @@ defmodule Watusi.Encoder do
     data_count_section =
       case {needs_data_count, sections.data} do
         {true, [_ | _] = list} -> encode_section(12, encode_u32(length(list)))
-        _ -> []
+        _other -> []
       end
 
     code_section = encode_section(10, encode_vector(sections.funcs, &encode_func_body(&1, ctx)))
@@ -253,7 +260,7 @@ defmodule Watusi.Encoder do
       [{:keyword, "import"}, _, _, [{:keyword, "func"} | rest]] ->
         [extract_signature([{:keyword, "func"} | rest], types)]
 
-      _ ->
+      _other ->
         []
     end)
   end
@@ -338,7 +345,7 @@ defmodule Watusi.Encoder do
     rest =
       case rest do
         [{:id, _} | tail] -> tail
-        _ -> rest
+        rest -> rest
       end
 
     {type_desc, rest} = List.pop_at(rest, 0)
@@ -425,43 +432,45 @@ defmodule Watusi.Encoder do
     rest =
       case rest do
         [{:id, _} | tail] -> tail
-        _ -> rest
+        rest -> rest
       end
 
     case rest do
-      [[{:keyword, "func"} | inner] | _] -> extract_raw_signature([{:keyword, "func"} | inner])
-      _ -> {[], []}
+      [[{:keyword, "func"} | inner] | _other] ->
+        extract_raw_signature([{:keyword, "func"} | inner])
+
+      _other ->
+        {[], []}
     end
   end
 
   defp extract_raw_signature([{:keyword, "func"} | rest]) do
-    rest =
+    metadata =
       case rest do
         [{:id, _} | tail] -> tail
-        _ -> rest
+        rest -> rest
       end
-
-    # Only take metadata from the head of the function
-    metadata =
-      Enum.take_while(rest, fn
+      |> Enum.take_while(fn
         [{:keyword, k} | _] when k in ["param", "result", "local", "export"] -> true
-        _ -> false
+        _other -> false
       end)
 
     params =
-      Enum.flat_map(metadata, fn
-        [{:keyword, "param"} | ts] ->
-          Enum.reject(ts, &match?({:id, _}, &1)) |> Enum.map(fn {:keyword, t} -> t end)
-
-        _ ->
-          []
+      metadata
+      |> Enum.flat_map(fn
+        [{:keyword, "param"} | ts] -> ts
+        _other -> []
       end)
+      |> Enum.reject(&match?({:id, _}, &1))
+      |> Enum.map(fn {:keyword, t} -> t end)
 
     results =
-      Enum.flat_map(metadata, fn
-        [{:keyword, "result"} | ts] -> Enum.map(ts, fn {:keyword, t} -> t end)
-        _ -> []
+      metadata
+      |> Enum.flat_map(fn
+        [{:keyword, "result"} | ts] -> ts
+        _other -> []
       end)
+      |> Enum.map(fn {:keyword, t} -> t end)
 
     {params, results}
   end
@@ -507,30 +516,36 @@ defmodule Watusi.Encoder do
     Enum.reduce(rest, [{1, first}], fn type, acc ->
       case acc do
         [{count, ^type} | tail] -> [{count + 1, type} | tail]
-        _ -> [{1, type} | acc]
+        _other -> [{1, type} | acc]
       end
     end)
     |> Enum.reverse()
   end
 
   defp build_local_map([{:keyword, "func"} | rest]) do
-    params =
-      Enum.flat_map(rest, fn
-        [{:keyword, "param"} | ts] ->
-          Enum.filter(ts, &match?({:id, _}, &1)) |> Enum.map(fn {:id, id} -> id end)
+    rest =
+      case rest do
+        [{:id, _} | tail] -> tail
+        rest -> rest
+      end
 
-        _ ->
-          []
+    params =
+      rest
+      |> Enum.flat_map(fn
+        [{:keyword, "param"} | ts] -> ts
+        _other -> []
       end)
+      |> Enum.filter(&match?({:id, _}, &1))
+      |> Enum.map(fn {:id, id} -> id end)
 
     locals =
-      Enum.flat_map(rest, fn
-        [{:keyword, "local"} | ts] ->
-          Enum.filter(ts, &match?({:id, _id}, &1)) |> Enum.map(fn {:id, id} -> id end)
-
-        _ ->
-          []
+      rest
+      |> Enum.flat_map(fn
+        [{:keyword, "local"} | ts] -> ts
+        _other -> []
       end)
+      |> Enum.filter(&match?({:id, _}, &1))
+      |> Enum.map(fn {:id, id} -> id end)
 
     (params ++ locals)
     |> Enum.with_index()
@@ -541,7 +556,7 @@ defmodule Watusi.Encoder do
     rest =
       case rest do
         [{:id, _} | tail] -> tail
-        _ -> rest
+        rest -> rest
       end
 
     rest
@@ -663,17 +678,21 @@ defmodule Watusi.Encoder do
 
   defp collect_if_instrs(inner_rest, labels) do
     then_body =
-      case Enum.find(inner_rest, &match?([{:keyword, "then"} | _], &1)) do
+      inner_rest
+      |> Enum.find(&match?([{:keyword, "then"} | _other], &1))
+      |> case do
         [{:keyword, "then"} | body] -> collect_instructions(body, labels)
-        _ -> []
+        _other -> []
       end
 
     else_body =
-      case Enum.find(inner_rest, &match?([{:keyword, "else"} | _], &1)) do
+      inner_rest
+      |> Enum.find(&match?([{:keyword, "else"} | _other], &1))
+      |> case do
         [{:keyword, "else"} | body] ->
           [{:instr, "else", [], labels} | collect_instructions(body, labels)]
 
-        _ ->
+        _other ->
           []
       end
 
@@ -685,22 +704,17 @@ defmodule Watusi.Encoder do
       Enum.filter(args, &match?([{:keyword, _} | _], &1))
       |> Enum.flat_map(&collect_instructions([&1], labels))
 
+  @immediate_types [:int, :float, :id, :offset, :align]
+
   defp filter_immediates(args) do
     Enum.filter(args, fn
-      {:int, _} -> true
-      {:float, _} -> true
-      {:id, _} -> true
-      {:offset, _} -> true
-      {:align, _} -> true
-      _ -> false
+      {type, _} -> type in @immediate_types
+      _other -> false
     end)
   end
 
-  defp collect_args([{:int, _} = arg | rest], acc), do: collect_args(rest, [arg | acc])
-  defp collect_args([{:float, _} = arg | rest], acc), do: collect_args(rest, [arg | acc])
-  defp collect_args([{:id, _} = arg | rest], acc), do: collect_args(rest, [arg | acc])
-  defp collect_args([{:offset, _} = arg | rest], acc), do: collect_args(rest, [arg | acc])
-  defp collect_args([{:align, _} = arg | rest], acc), do: collect_args(rest, [arg | acc])
+  defp collect_args([{type, _} = arg | rest], acc) when type in @immediate_types,
+    do: collect_args(rest, [arg | acc])
 
   defp collect_args([[{:keyword, "result"} | _] = arg | rest], acc),
     do: collect_args(rest, [arg | acc])
@@ -712,26 +726,30 @@ defmodule Watusi.Encoder do
     [opcode | encode_immediates(name, args, ctx, labels)]
   end
 
-  defp encode_immediates(name, args, ctx, labels) do
-    cond do
-      is_mem_instr(name) ->
-        encode_mem_immediates(name, args)
+  defp encode_immediates(name, args, _ctx, _labels) when is_mem_instr(name) do
+    encode_mem_immediates(name, args)
+  end
 
-      is_control_flow(name) ->
-        encode_control_flow_immediates(args)
+  defp encode_immediates(name, args, _ctx, _labels) when is_control_flow(name) do
+    encode_control_flow_immediates(args)
+  end
 
-      is_bulk_mem(name) ->
-        encode_bulk_mem_immediates(name, args, ctx)
+  defp encode_immediates(name, args, ctx, _labels) when is_bulk_mem(name) do
+    encode_bulk_mem_immediates(name, args, ctx)
+  end
 
-      name in ["memory.grow", "memory.size"] ->
-        [0x00]
+  defp encode_immediates(name, _args, _ctx, _labels)
+       when name in ["memory.grow", "memory.size"] do
+    [0x00]
+  end
 
-      is_branch(name) or is_call(name) or name == "br_table" ->
-        encode_dynamic_immediates(name, args, ctx, labels)
+  defp encode_immediates(name, args, ctx, labels)
+       when is_branch(name) or is_call(name) or name == "br_table" do
+    encode_dynamic_immediates(name, args, ctx, labels)
+  end
 
-      true ->
-        Enum.map(args, &encode_arg(name, &1, ctx, []))
-    end
+  defp encode_immediates(name, args, ctx, _labels) do
+    Enum.map(args, &encode_arg(name, &1, ctx, []))
   end
 
   defp encode_dynamic_immediates("br_table", args, _ctx, labels) do

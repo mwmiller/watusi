@@ -363,27 +363,10 @@ defmodule WatusiTest do
     assert_wasm_parity(wat)
   end
 
-  test "integration: sample add.wat" do
-    "test/samples/add.wat" |> File.read!() |> assert_wasm_parity("add")
-  end
-
-  test "integration: sample recursion.wat" do
-    "test/samples/recursion.wat" |> File.read!() |> assert_wasm_parity("recursion")
-  end
-
-  test "integration: sample itoa.wat" do
-    "test/samples/itoa.wat" |> File.read!() |> assert_wasm_parity("itoa")
-  end
-
-  test "integration: sample loops.wat" do
-    "test/samples/loops.wat" |> File.read!() |> assert_wasm_parity("loops")
-  end
-
-  test "integration: sample select.wat" do
-    "test/samples/select.wat" |> File.read!() |> assert_wasm_parity("select")
-  end
-
-  test "integration: sample stack.wat" do
-    "test/samples/stack.wat" |> File.read!() |> assert_wasm_parity("stack")
+  for sample <- ["add", "recursion", "itoa", "loops", "select", "stack"] do
+    @sample sample
+    test "integration: sample #{@sample}.wat" do
+      "test/samples/#{@sample}.wat" |> File.read!() |> assert_wasm_parity(@sample)
+    end
   end
 end
