@@ -135,41 +135,34 @@ defmodule Watusi.Lexer do
       nan_payload_string?(atom) -> {:float, parse_nan_payload(atom)}
       integer_string?(atom) -> {:int, parse_integer(atom)}
       float_string?(atom) -> {:float, parse_float(atom)}
-      String.starts_with?(atom, "offset=") -> {:offset, parse_kv_int(atom, "offset=")}
-      String.starts_with?(atom, "align=") -> {:align, parse_kv_int(atom, "align=")}
+      match?(<<"offset=", _::binary>>, atom) -> {:offset, parse_kv_int(atom, "offset=")}
+      match?(<<"align=", _::binary>>, atom) -> {:align, parse_kv_int(atom, "align=")}
       true -> {:keyword, atom}
     end
   end
 
   defp parse_kv_int(atom, prefix) do
-    atom |> String.replace(prefix, "") |> parse_integer()
+    size = byte_size(prefix)
+    <<_::binary-size(size), val::binary>> = atom
+    parse_integer(val)
   end
 
   defp integer_string?(s) do
     case s do
-      "0x" <> hex -> match?({_, ""}, Integer.parse(hex, 16))
-      "-" <> "0x" <> hex -> match?({_, ""}, Integer.parse(hex, 16))
-      "+" <> "0x" <> hex -> match?({_, ""}, Integer.parse(hex, 16))
+      <<"0x", _::binary>> -> true
+      <<"-0x", _::binary>> -> true
+      <<"+0x", _::binary>> -> true
       _ -> match?({_, ""}, Integer.parse(s))
     end
   end
 
   defp parse_integer(s) do
     case s do
-      "0x" <> hex ->
-        String.to_integer(hex, 16)
-
-      "-" <> "0x" <> hex ->
-        -String.to_integer(hex, 16)
-
-      "+" <> "0x" <> hex ->
-        String.to_integer(hex, 16)
-
-      _ ->
-        case String.at(s, 0) do
-          "+" -> String.to_integer(String.slice(s, 1..-1//1))
-          _ -> String.to_integer(s)
-        end
+      <<"0x", hex::binary>> -> String.to_integer(hex, 16)
+      <<"-0x", hex::binary>> -> -String.to_integer(hex, 16)
+      <<"+0x", hex::binary>> -> String.to_integer(hex, 16)
+      <<"+", rest::binary>> -> String.to_integer(rest)
+      _ -> String.to_integer(s)
     end
   end
 
@@ -178,9 +171,9 @@ defmodule Watusi.Lexer do
   end
 
   defp parse_float(s) do
-    case String.at(s, 0) do
-      "+" ->
-        {f, ""} = Float.parse(String.slice(s, 1..-1//1))
+    case s do
+      <<"+", rest::binary>> ->
+        {f, ""} = Float.parse(rest)
         f
 
       _ ->
@@ -194,14 +187,15 @@ defmodule Watusi.Lexer do
   end
 
   defp parse_hex_float(s) do
+    # Format: [+-]?0x<significand>p<exponent>
     {sign, rest} =
       case s do
-        "-" <> tail -> {-1, tail}
-        "+" <> tail -> {1, tail}
+        <<"-", tail::binary>> -> {-1, tail}
+        <<"+", tail::binary>> -> {1, tail}
         _ -> {1, s}
       end
 
-    "0x" <> rest = rest
+    <<"0x", rest::binary>> = rest
     [significand_str, exponent_str] = String.split(rest, ~r/[pP]/)
 
     significand = parse_hex_significand(significand_str)
@@ -232,7 +226,7 @@ defmodule Watusi.Lexer do
 
   defp parse_hex_exponent(s) do
     case s do
-      "+" <> e -> String.to_integer(e)
+      <<"+", e::binary>> -> String.to_integer(e)
       _ -> String.to_integer(s)
     end
   end
@@ -254,16 +248,16 @@ defmodule Watusi.Lexer do
   defp parse_nan_payload(s) do
     {sign, rest} =
       case s do
-        "-" <> tail -> {-1, tail}
-        "+" <> tail -> {1, tail}
+        <<"-", tail::binary>> -> {-1, tail}
+        <<"+", tail::binary>> -> {1, tail}
         _ -> {1, s}
       end
 
-    "nan:" <> payload_str = rest
+    <<"nan:", payload_str::binary>> = rest
 
     payload =
       case payload_str do
-        "0x" <> hex -> String.to_integer(hex, 16)
+        <<"0x", hex::binary>> -> String.to_integer(hex, 16)
         _dec -> String.to_integer(payload_str)
       end
 
