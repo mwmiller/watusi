@@ -291,7 +291,10 @@ defmodule Watusi.Instructions do
     "i32.atomic.rmw16.cmpxchg_u" => {:fe, 0x4B},
     "i64.atomic.rmw8.cmpxchg_u" => {:fe, 0x4C},
     "i64.atomic.rmw16.cmpxchg_u" => {:fe, 0x4D},
-    "i64.atomic.rmw32.cmpxchg_u" => {:fe, 0x4E}
+    "i64.atomic.rmw32.cmpxchg_u" => {:fe, 0x4E},
+    # Reference types instructions
+    "table.get" => 0x25,
+    "table.set" => 0x26
   }
 
   def opcode(name), do: Map.fetch!(@opcodes, name)
@@ -301,7 +304,10 @@ defmodule Watusi.Instructions do
     "i64" => 0x7E,
     "f32" => 0x7D,
     "f64" => 0x7C,
-    "v128" => 0x7B
+    "v128" => 0x7B,
+    "externref" => 0x6F,
+    "funcref" => 0x70,
+    "anyfunc" => 0x70
   }
 
   def valtype(name), do: Map.fetch!(@valtypes, name)

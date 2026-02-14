@@ -203,15 +203,30 @@ defmodule Watusi.Encoder.Sections do
     {mod, name, kind, other_rest}
   end
 
+  @reftypes ["funcref", "anyfunc", "externref"]
+
   def encode_table([{:keyword, "table"} | rest]) do
+    type_keyword =
+      Enum.find(rest, fn
+        {:keyword, k} when k in @reftypes -> true
+        _other -> false
+      end)
+
+    type_byte =
+      case type_keyword do
+        {:keyword, k} -> Instructions.valtype(k)
+        _other -> 0x70
+      end
+
     rest =
       Enum.reject(rest, fn
         {:id, _id} -> true
+        {:keyword, k} when k in @reftypes -> true
         [{:keyword, "export"}, _other] -> true
         _other -> false
       end)
 
-    [0x70, encode_limits(rest)]
+    [type_byte, encode_limits(rest)]
   end
 
   def encode_memory([{:keyword, "memory"} | rest]) do

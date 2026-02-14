@@ -211,6 +211,8 @@ defmodule Watusi.Encoder.Instructions do
     "i64.atomic.rmw32.cmpxchg_u"
   ]
 
+  @table_ops ["table.get", "table.set"]
+
   @immediate_types [:int, :float, :id, :offset, :align]
 
   # Guards for instruction categories
@@ -222,6 +224,7 @@ defmodule Watusi.Encoder.Instructions do
   defguard is_mem_instr(name) when name in @memory_ops
   defguard is_simd(name) when name in @simd_ops
   defguard is_atomic(name) when name in @atomic_ops
+  defguard is_table_op(name) when name in @table_ops
 
   def encode_instruction({:instr, name, args, labels}, ctx) do
     case Instructions.opcode(name) do
@@ -253,6 +256,10 @@ defmodule Watusi.Encoder.Instructions do
 
   defp encode_immediates(name, args, _ctx, _labels) when is_simd(name) do
     encode_simd_immediates(name, args)
+  end
+
+  defp encode_immediates(name, args, ctx, _labels) when is_table_op(name) do
+    encode_table_immediates(name, args, ctx)
   end
 
   defp encode_immediates(name, args, _ctx, _labels) when is_atomic(name) do
@@ -317,6 +324,19 @@ defmodule Watusi.Encoder.Instructions do
           [{:keyword, "result"}, {:keyword, type}] -> [Instructions.valtype(type)]
           _other -> [0x40]
         end
+    end
+  end
+
+  defp encode_table_immediates(_name, args, ctx) do
+    case args do
+      [{:id, id} | _other] ->
+        [Common.encode_u32(resolve_index(id, ctx.tables, ctx.imports, "table"))]
+
+      [{:int, i} | _other] ->
+        [Common.encode_u32(i)]
+
+      _other ->
+        [Common.encode_u32(0)]
     end
   end
 
