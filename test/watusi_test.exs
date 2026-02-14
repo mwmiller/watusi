@@ -363,24 +363,20 @@ defmodule WatusiTest do
     assert_wasm_parity(wat)
   end
 
-  for sample <- [
-        "add",
-        "recursion",
-        "itoa",
-        "loops",
-        "select",
-        "stack",
-        "isprime",
-        "locals",
-        "memory-basics",
-        "endianflip",
-        "vcount",
-        "vmin",
-        "vecadd"
-      ] do
-    @sample sample
-    test "integration: sample #{@sample}.wat" do
-      "test/samples/#{@sample}.wat" |> File.read!() |> assert_wasm_parity(@sample)
+    for path <- Path.wildcard("test/samples/*.wat") do
+
+      @sample_path path
+
+      @sample_name Path.basename(path, ".wat")
+
+  
+
+      test "integration: sample #{@sample_name}.wat" do
+
+        @sample_path |> File.read!() |> assert_wasm_parity(@sample_name)
+
+      end
+
     end
+
   end
-end
