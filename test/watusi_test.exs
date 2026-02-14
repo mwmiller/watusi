@@ -364,188 +364,26 @@ defmodule WatusiTest do
   end
 
   test "integration: sample add.wat" do
-    wat = """
-    (module
-        (func $add (export "add") (param $a i32) (param $b i32) (result i32)
-            (i32.add (local.get $a) (local.get $b))
-        )
-    )
-    """
-
-    assert_wasm_parity(wat)
+    "test/samples/add.wat" |> File.read!() |> assert_wasm_parity("add")
   end
 
   test "integration: sample recursion.wat" do
-    wat = """
-    (module
-        (func $factorial (export "factorial") (param $n i32) (result i32)
-            (if (result i32)
-                (i32.le_s (local.get $n) (i32.const 1))
-                (then (i32.const 1))
-                (else
-                    (i32.mul
-                        (local.get $n)
-                        (call $factorial (i32.sub (local.get $n) (i32.const 1)))))
-            )
-        )
-
-        (func $is_even (export "is_even") (param $n i32) (result i32)
-            (if (result i32)
-                (i32.eqz (local.get $n))
-                (then (i32.const 1))
-                (else (call $is_odd (i32.sub (local.get $n) (i32.const 1))))
-            )
-        )
-
-        (func $is_odd (export "is_odd") (param $n i32) (result i32)
-            (if (result i32)
-                (i32.eqz (local.get $n))
-                (then (i32.const 0))
-                (else (call $is_even (i32.sub (local.get $n) (i32.const 1))))
-            )
-        )
-    )
-    """
-
-    assert_wasm_parity(wat)
+    "test/samples/recursion.wat" |> File.read!() |> assert_wasm_parity("recursion")
   end
 
   test "integration: sample itoa.wat" do
-    wat = """
-    (module
-        (import "env" "log" (func $log (param i32)))
-        (memory (export "memory") 1)
-        (data (i32.const 8000) "0123456789")
-        (global $itoa_out_buf i32 (i32.const 8010))
-
-        (func $itoa (export "itoa") (param $num i32) (result i32 i32)
-            (local $numtmp i32)
-            (local $numlen i32)
-            (local $writeidx i32)
-            (local $digit i32)
-            (local $dchar i32)
-
-            (i32.lt_s (local.get $num) (i32.const 10))
-            if
-                (local.set $numlen (i32.const 1))
-            else
-                (local.set $numlen (i32.const 0))
-                (local.set $numtmp (local.get $num))
-                (loop $countloop (block $breakcountloop
-                    (i32.eqz (local.get $numtmp))
-                    br_if $breakcountloop
-
-                    (local.set $numtmp (i32.div_u (local.get $numtmp) (i32.const 10)))
-                    (local.set $numlen (i32.add (local.get $numlen) (i32.const 1)))
-                    br $countloop
-                ))
-            end
-
-            (local.set $writeidx
-                (i32.sub
-                    (i32.add (global.get $itoa_out_buf) (local.get $numlen))
-                    (i32.const 1)))
-
-            (loop $writeloop (block $breakwriteloop
-                (local.set $digit (i32.rem_u (local.get $num) (i32.const 10)))
-                (local.set $dchar (i32.load8_u offset=8000 (local.get $digit)))
-
-                (i32.store8 (local.get $writeidx) (local.get $dchar))
-
-                (local.set $num (i32.div_u (local.get $num) (i32.const 10)))
-
-                (i32.eq (local.get $writeidx) (global.get $itoa_out_buf))
-                br_if $breakwriteloop
-
-                (local.set $writeidx (i32.sub (local.get $writeidx) (i32.const 1)))
-                br $writeloop
-            ))
-
-            (global.get $itoa_out_buf)
-            (local.get $numlen)
-        )
-    )
-    """
-
-    assert_wasm_parity(wat)
+    "test/samples/itoa.wat" |> File.read!() |> assert_wasm_parity("itoa")
   end
 
   test "integration: sample loops.wat" do
-    wat = """
-    (module
-        (import "env" "buffer" (memory 80))
-        (import "env" "log_i32" (func $log_i32 (param i32)))
-        (import "env" "rand_i32" (func $rand_i32 (result i32)))
-
-        (func (export "add_all") (param $start i32) (param $count i32) (result i32)
-            (local $i i32)
-            (local $read_offset i32)
-            (local $result i32)
-
-            (local.set $i (i32.const 0))
-            (loop $addloop (block $breakaddloop
-                (i32.ge_s (local.get $i) (local.get $count))
-                br_if $breakaddloop
-
-                (local.set $read_offset
-                    (i32.add
-                        (local.get $start)
-                        (i32.mul (local.get $i) (i32.const 4))))
-
-                (local.set $result
-                    (i32.add
-                        (local.get $result)
-                        (i32.load (local.get $read_offset))))
-
-                (local.set $i (i32.add (local.get $i) (i32.const 1)))
-                br $addloop
-            ))
-
-            (local.get $result)
-        )
-
-        (func (export "rand_multiple_of_10") (result i32)
-            (local $n i32)
-            (loop $randloop
-                (local.set $n (call $rand_i32))
-                (i32.ne (i32.rem_u (local.get $n) (i32.const 10)) (i32.const 0))
-                br_if $randloop
-            )
-            (local.get $n)
-        )
-
-        (func (export "first_power_over_limit") (param $base i32) (param $limit i32) (result i32)
-            (local $n i32)
-            (local.set $n (i32.const 1))
-            (loop $powerloop (block $breakpowerloop
-                (i32.gt_s (local.get $n) (local.get $limit))
-                br_if $breakpowerloop
-                (local.set $n (i32.mul (local.get $n) (local.get $base)))
-                br $powerloop
-            ))
-            (local.get $n)
-        )
-    )
-    """
-
-    assert_wasm_parity(wat)
+    "test/samples/loops.wat" |> File.read!() |> assert_wasm_parity("loops")
   end
 
   test "integration: sample select.wat" do
-    wat = """
-    (module
-        (func $add_or_sub (export "add_or_sub")
-            (param $a i32) (param $b i32) (param $control i32)
-            (result i32)
-            (select
-                (i32.add (local.get $a) (local.get $b))
-                (i32.sub (local.get $a) (local.get $b))
-                (i32.ge_s (local.get $control) (i32.const 0))
-            )
-        )
-    )
-    """
+    "test/samples/select.wat" |> File.read!() |> assert_wasm_parity("select")
+  end
 
-    assert_wasm_parity(wat)
+  test "integration: sample stack.wat" do
+    "test/samples/stack.wat" |> File.read!() |> assert_wasm_parity("stack")
   end
 end

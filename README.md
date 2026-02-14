@@ -26,6 +26,8 @@ The test suite uses tools from the [WebAssembly Binary Toolkit (WABT)](https://g
 - `wat2wasm`: Used to verify bit-for-bit parity of the generated binary.
 - `wasm-validate`: Used to ensure the generated binary adheres to the WebAssembly specification.
 
+Additionally, several complex integration tests are sourced from [Eli Bendersky's wasm-wat-samples](https://github.com/eliben/wasm-wat-samples).
+
 To run the tests, ensure these tools are available in your PATH.
 
 ## Usage

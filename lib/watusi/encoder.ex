@@ -11,9 +11,6 @@ defmodule Watusi.Encoder do
   defguardp is_call(name) when name in ["call", "call_indirect"]
   defguardp is_global_op(name) when name in ["global.get", "global.set"]
 
-  defguardp is_metadata(name)
-            when name in ["type", "param", "result", "local", "export", "then", "else"]
-
   defguardp is_bulk_mem(name)
             when name in [
                    "memory.init",
@@ -444,8 +441,15 @@ defmodule Watusi.Encoder do
         _ -> rest
       end
 
+    # Only take metadata from the head of the function
+    metadata =
+      Enum.take_while(rest, fn
+        [{:keyword, k} | _] when k in ["param", "result", "local", "export"] -> true
+        _ -> false
+      end)
+
     params =
-      Enum.flat_map(rest, fn
+      Enum.flat_map(metadata, fn
         [{:keyword, "param"} | ts] ->
           Enum.reject(ts, &match?({:id, _}, &1)) |> Enum.map(fn {:keyword, t} -> t end)
 
@@ -454,7 +458,7 @@ defmodule Watusi.Encoder do
       end)
 
     results =
-      Enum.flat_map(rest, fn
+      Enum.flat_map(metadata, fn
         [{:keyword, "result"} | ts] -> Enum.map(ts, fn {:keyword, t} -> t end)
         _ -> []
       end)
@@ -463,7 +467,11 @@ defmodule Watusi.Encoder do
   end
 
   defp encode_signature({params, results}) do
-    [0x60, encode_vector(params, &encode_valtype/1), encode_vector(results, &encode_valtype/1)]
+    [
+      0x60,
+      encode_vector(params, &encode_valtype/1),
+      encode_vector(results, &encode_valtype/1)
+    ]
   end
 
   defp encode_valtype(type), do: Instructions.valtype(type)
@@ -518,7 +526,7 @@ defmodule Watusi.Encoder do
     locals =
       Enum.flat_map(rest, fn
         [{:keyword, "local"} | ts] ->
-          Enum.filter(ts, &match?({:id, _}, &1)) |> Enum.map(fn {:id, id} -> id end)
+          Enum.filter(ts, &match?({:id, _id}, &1)) |> Enum.map(fn {:id, id} -> id end)
 
         _ ->
           []
@@ -539,7 +547,7 @@ defmodule Watusi.Encoder do
     rest
     |> Enum.reject(fn
       [{:keyword, "export"}, _] -> true
-      [{:keyword, k} | _] when k in ["param", "result", "local"] -> true
+      [{:keyword, k} | _] when k in ["param", "local"] -> true
       _ -> false
     end)
     |> do_collect_instructions([], label_stack)
@@ -547,8 +555,40 @@ defmodule Watusi.Encoder do
 
   defp do_collect_instructions([], acc, _labels), do: Enum.reverse(acc)
 
+  defp do_collect_instructions([{:keyword, name} | rest], acc, labels)
+       when is_control_flow(name) do
+    # Flat Style control flow: (block $id (result i32) ...)
+    {args, remaining} = collect_args(rest, [])
+
+    {label, args} =
+      case args do
+        [{:id, id} | tail] -> {id, tail}
+        _ -> {nil, args}
+      end
+
+    new_labels = [label | labels]
+
+    do_collect_instructions(remaining, [{:instr, name, args, labels} | acc], new_labels)
+  end
+
+  defp do_collect_instructions([{:keyword, "end"} | rest], acc, labels) do
+    # POP label
+    new_labels =
+      case labels do
+        [_ | tail] -> tail
+        [] -> []
+      end
+
+    do_collect_instructions(rest, [{:instr, "end", [], labels} | acc], new_labels)
+  end
+
   defp do_collect_instructions([[{:keyword, name} | _] | rest], acc, labels)
-       when is_metadata(name) do
+       when name in ["type", "param", "local", "export", "then", "else"] do
+    do_collect_instructions(rest, acc, labels)
+  end
+
+  defp do_collect_instructions([[{:keyword, "result"} | _] | rest], acc, labels) do
+    # Result outside of control flow head is discarded (already handled in head)
     do_collect_instructions(rest, acc, labels)
   end
 
@@ -559,6 +599,7 @@ defmodule Watusi.Encoder do
 
   defp do_collect_instructions([[{:keyword, name} | args] | rest], acc, labels)
        when is_control_flow(name) do
+    # Folded Style control flow
     {label, args} =
       case args do
         [{:id, id} | tail] -> {id, tail}
@@ -660,6 +701,10 @@ defmodule Watusi.Encoder do
   defp collect_args([{:id, _} = arg | rest], acc), do: collect_args(rest, [arg | acc])
   defp collect_args([{:offset, _} = arg | rest], acc), do: collect_args(rest, [arg | acc])
   defp collect_args([{:align, _} = arg | rest], acc), do: collect_args(rest, [arg | acc])
+
+  defp collect_args([[{:keyword, "result"} | _] = arg | rest], acc),
+    do: collect_args(rest, [arg | acc])
+
   defp collect_args(rest, acc), do: {Enum.reverse(acc), rest}
 
   defp encode_instruction({:instr, name, args, labels}, ctx, _) do
@@ -723,8 +768,14 @@ defmodule Watusi.Encoder do
 
   defp encode_control_flow_immediates(args) do
     case args do
-      [{:int, bt} | _] -> [bt]
-      _ -> [0x40]
+      [{:int, bt} | _] ->
+        [bt]
+
+      _ ->
+        case Enum.find(args, &match?([{:keyword, "result"} | _], &1)) do
+          [{:keyword, "result"}, {:keyword, type}] -> [encode_valtype(type)]
+          _ -> [0x40]
+        end
     end
   end
 
