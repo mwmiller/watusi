@@ -1,7 +1,5 @@
 defmodule Watusi.Encoder do
-  @moduledoc """
-  WASM Binary Encoder coordinator.
-  """
+  @moduledoc false
   alias Watusi.Encoder.Common
   alias Watusi.Encoder.Instructions, as: InstrEncoder
   alias Watusi.Encoder.Sections
@@ -46,7 +44,10 @@ defmodule Watusi.Encoder do
 
     # Section 9: Elements (Table initializers)
     elem_section =
-      Common.encode_section(9, Common.encode_vector(sections.elems, &Sections.encode_elem(&1, ctx)))
+      Common.encode_section(
+        9,
+        Common.encode_vector(sections.elems, &Sections.encode_elem(&1, ctx))
+      )
 
     # Section 13: Exception Tags (from Exception Handling proposal)
     tag_section =
@@ -67,34 +68,53 @@ defmodule Watusi.Encoder do
 
     # Section 11: Data segments (Memory initializers)
     data_section =
-      Common.encode_section(11, Common.encode_vector(sections.data, &Sections.encode_data(&1, ctx)))
+      Common.encode_section(
+        11,
+        Common.encode_vector(sections.data, &Sections.encode_data(&1, ctx))
+      )
 
     # Custom Section 0: Debug names (Optional)
     name_section =
       case debug_names do
-        true -> Sections.encode_name_section(module_id, sections, counts)
+        true -> Sections.encode_name_section(module_id, sections, counts, signatures)
         false -> []
       end
 
     # Sections must appear in a specific numeric order defined by the WASM spec
     IO.iodata_to_binary([
       header,
-      Common.encode_section(1, Common.encode_vector(signatures, &Sections.encode_signature/1)),
+      Common.encode_section(
+        1,
+        Common.encode_vector(signatures, &Sections.encode_signature(&1, ctx))
+      ),
       Common.encode_section(
         2,
-        Common.encode_vector(sections.imports, &Sections.encode_import(&1, signatures, sections.types))
+        Common.encode_vector(
+          sections.imports,
+          &Sections.encode_import(&1, signatures, sections.types)
+        )
       ),
       Common.encode_section(
         3,
-        Common.encode_vector(sections.funcs, fn f ->
-          sig = Sections.extract_signature(f, sections.types)
-          Enum.find_index(signatures, &(&1 == sig))
-        end, &Common.encode_u32/1)
+        Common.encode_vector(
+          sections.funcs,
+          &Sections.extract_signature_index(&1, signatures, sections.types),
+          &Common.encode_u32/1
+        )
       ),
-      Common.encode_section(4, Common.encode_vector(sections.tables, &Sections.encode_table/1)),
-      Common.encode_section(5, Common.encode_vector(sections.memories, &Sections.encode_memory/1)),
-      Common.encode_section(6, Common.encode_vector(sections.globals, &Sections.encode_global(&1, ctx))),
+      Common.encode_section(
+        4,
+        Common.encode_vector(sections.tables, &Sections.encode_table(&1, ctx))
+      ),
+      Common.encode_section(
+        5,
+        Common.encode_vector(sections.memories, &Sections.encode_memory/1)
+      ),
       tag_section,
+      Common.encode_section(
+        6,
+        Common.encode_vector(sections.globals, &Sections.encode_global(&1, ctx))
+      ),
       encode_export_section(exports, sections),
       encode_start_section(sections.starts, sections.funcs, sections.imports),
       elem_section,
@@ -107,27 +127,15 @@ defmodule Watusi.Encoder do
 
   # Import counts are needed to calculate the base index for local declarations
   defp resolve_counts(imports) do
-    %{
-      func: count_imports(imports, "func"),
-      table: count_imports(imports, "table"),
-      memory: count_imports(imports, "memory"),
-      global: count_imports(imports, "global"),
-      tag: count_imports(imports, "tag")
-    }
-  end
-
-  defp count_imports(imports, kind) do
-    Enum.count(imports, fn item ->
-      case Sections.normalize_import(item) do
-        {_, _, ^kind, _} -> true
-        _ -> false
-      end
+    Enum.reduce(imports, %{func: 0, table: 0, memory: 0, global: 0, tag: 0}, fn item, acc ->
+      {_, _, kind, _} = Sections.normalize_import(item)
+      Map.update!(acc, String.to_atom(kind), &(&1 + 1))
     end)
   end
 
   # Data count is required if any passive segments or bulk memory instructions are used
   defp needs_data_count?(sections, ctx) do
-    Enum.any?(sections.data, &passive_data?(&1)) or has_bulk_mem_instr?(sections.funcs, ctx)
+    has_bulk_mem_instr?(sections.funcs, ctx)
   end
 
   defp prepare_data_count_section(sections, true) do
@@ -139,22 +147,27 @@ defmodule Watusi.Encoder do
 
   defp prepare_data_count_section(_sections, false), do: []
 
-  defp passive_data?([{:keyword, "data"} | rest]) do
-    !Enum.any?(rest, fn
-      [{:keyword, _} | _] -> true
-      _ -> false
-    end)
+  defp has_bulk_mem_instr?(funcs, _ctx) do
+    Enum.any?(funcs, &tokens_contain_bulk_mem?/1)
   end
 
-  defp has_bulk_mem_instr?(funcs, ctx) do
-    Enum.any?(funcs, fn [_head | rest] ->
-      instructions = InstrEncoder.collect_instructions(rest, ctx)
+  defp tokens_contain_bulk_mem?([]), do: false
 
-      Enum.any?(instructions, fn {:instr, name, _args, _labels} ->
-        name in ["memory.init", "data.drop", "table.init", "elem.drop"]
-      end)
-    end)
+  defp tokens_contain_bulk_mem?([{:keyword, name} | rest]) do
+    case name in ["memory.init", "data.drop"] do
+      true -> true
+      false -> tokens_contain_bulk_mem?(rest)
+    end
   end
+
+  defp tokens_contain_bulk_mem?([list | rest]) when is_list(list) do
+    case tokens_contain_bulk_mem?(list) do
+      true -> true
+      false -> tokens_contain_bulk_mem?(rest)
+    end
+  end
+
+  defp tokens_contain_bulk_mem?([_ | rest]), do: tokens_contain_bulk_mem?(rest)
 
   defp encode_export_section([], _sections), do: []
 
@@ -205,26 +218,64 @@ defmodule Watusi.Encoder do
 
   # Exports can be declared explicitly via (export ...) or inline via (func (export ...))
   defp collect_exports(body, counts) do
-    {exports, _indices} =
-      Enum.reduce(body, {[], %{func: 0, table: 0, memory: 0, global: 0, tag: 0}}, &do_collect_exports(&1, &2, counts))
+    {exports, _indices, _import_indices} =
+      Enum.reduce(
+        body,
+        {[], %{func: 0, table: 0, memory: 0, global: 0, tag: 0},
+         %{func: 0, table: 0, memory: 0, global: 0, tag: 0}},
+        &do_collect_exports(&1, &2, counts)
+      )
 
-    exports
+    Enum.reverse(exports)
   end
 
-  defp do_collect_exports([{:keyword, kind} | _] = item, {acc, indices}, counts) when kind in ["func", "table", "memory", "global", "tag"] do
-    case inline_import?(item) do
-      true -> {acc, indices}
-      false ->
-        kind_atom = String.to_atom(kind)
-        idx = Map.fetch!(counts, kind_atom) + Map.fetch!(indices, kind_atom)
-        shorthands = collect_shorthands(item, kind_atom, idx)
-        {acc ++ shorthands, Map.update!(indices, kind_atom, &(&1 + 1))}
-    end
-  end
-
-  defp do_collect_exports([{:keyword, "export"}, {:string, name}, [{:keyword, kind}, index_or_id]], {acc, indices}, _counts) do
+  defp do_collect_exports(
+         [{:keyword, "import"} | _] = item,
+         {acc, indices, import_indices},
+         _counts
+       ) do
+    {_mod, _name, kind, _rest} = Sections.normalize_import(item)
     kind_atom = String.to_atom(kind)
-    {acc ++ [{:export, name, kind_atom, index_or_id}], indices}
+    idx = Map.fetch!(import_indices, kind_atom)
+    shorthands = collect_shorthands(item, kind_atom, idx)
+    {Enum.reverse(shorthands) ++ acc, indices, Map.update!(import_indices, kind_atom, &(&1 + 1))}
+  end
+
+  defp do_collect_exports([{:keyword, kind} | _] = item, {acc, indices, import_indices}, counts)
+       when kind in ["func", "table", "memory", "global", "tag"] do
+    kind_atom = String.to_atom(kind)
+    is_import = inline_import?(item)
+
+    idx =
+      case is_import do
+        true -> Map.fetch!(import_indices, kind_atom)
+        false -> Map.fetch!(counts, kind_atom) + Map.fetch!(indices, kind_atom)
+      end
+
+    shorthands = collect_shorthands(item, kind_atom, idx)
+
+    new_indices =
+      case is_import do
+        true -> indices
+        false -> Map.update!(indices, kind_atom, &(&1 + 1))
+      end
+
+    new_import_indices =
+      case is_import do
+        true -> Map.update!(import_indices, kind_atom, &(&1 + 1))
+        false -> import_indices
+      end
+
+    {Enum.reverse(shorthands) ++ acc, new_indices, new_import_indices}
+  end
+
+  defp do_collect_exports(
+         [{:keyword, "export"}, {:string, name}, [{:keyword, kind}, index_or_id]],
+         {acc, indices, import_indices},
+         _counts
+       ) do
+    kind_atom = String.to_atom(kind)
+    {[{:export, name, kind_atom, index_or_id} | acc], indices, import_indices}
   end
 
   defp do_collect_exports(_, state, _), do: state
@@ -238,9 +289,21 @@ defmodule Watusi.Encoder do
 
   defp collect_shorthands(item, kind, index) do
     item
-    |> Enum.filter(&match?([{:keyword, "export"}, {:string, _}], &1))
-    |> Enum.map(fn [{:keyword, "export"}, {:string, name}] ->
+    |> filter_exports()
+    |> Enum.map(fn name ->
       {:export, name, kind, {:int, index}}
     end)
   end
+
+  defp filter_exports(list) when is_list(list) do
+    case list do
+      [{:keyword, "export"}, {:string, name}] ->
+        [name]
+
+      _ ->
+        Enum.flat_map(list, &filter_exports/1)
+    end
+  end
+
+  defp filter_exports(_), do: []
 end
