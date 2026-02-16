@@ -2,6 +2,15 @@
 
 A native Elixir implementation for converting WebAssembly Text (WAT) to the WebAssembly Binary Format (WASM).
 
+Watusi provides a pure-Elixir pipeline for transforming human-readable WebAssembly into the standard binary format, supporting modern extensions and ensuring full compatibility with official tooling.
+
+## Why Watusi?
+
+- **Native Elixir**: No dependencies on external tools like `wat2wasm` for basic operation.
+- **Modern Standards**: Support for Bulk Memory, SIMD, Threads, and Exception Handling.
+- **Developer Friendly**: Optional support for debug names and detailed identifier resolution.
+- **High Performance**: Optimized for speed and low memory overhead during the encoding process.
+
 ## Specifications
 
 Watusi adheres to the following standards:
@@ -12,46 +21,12 @@ Watusi adheres to the following standards:
 - WebAssembly Threads/Atomics Extension.
 - WebAssembly Sign-extension Operators.
 - WebAssembly Nontrapping Float-to-int Conversions.
+- WebAssembly Exception Handling Proposal.
 - IEEE 754-2019 for floating-point representation.
-
-## Features
-
-- S-Expression and Flat Syntax: Supports both folded and flat WAT formats.
-- Identifier Resolution: Resolves symbolic identifiers (e.g. $my_func, $my_var) to their numeric indices.
-- Section Support: All core sections plus Custom (name) section.
-- Instruction Support: Comprehensive support for Core 1.0, Bulk Memory, SIMD, and Atomics.
-- Debug Names: Optional support for including identifiers in the binary via the 'name' section.
-- LEB128 Encoding: Uses the leb128 package for efficient integer encoding.
-- Verified Compatibility: Tested against the official wat2wasm tool.
-
-## Testing
-
-The test suite uses tools from the [WebAssembly Binary Toolkit (WABT)](https://github.com/WebAssembly/wabt) as a gold standard for correctness:
-
-- `wat2wasm`: Used to verify bit-for-bit parity of the generated binary.
-- `wasm-validate`: Used to ensure the generated binary adheres to the WebAssembly specification.
-
-Additionally, several complex integration tests are sourced from:
-- [Eli Bendersky's wasm-wat-samples](https://github.com/eliben/wasm-wat-samples)
-- [Benedikt Meurer's wasm-dbg-stories](https://github.com/bmeurer/wasm-dbg-stories)
-- [agstenf's wasm-fingerprinting](https://github.com/agstenf/wasm-fingerprinting)
-
-To run the tests, ensure these tools are available in your PATH.
-
-## Usage
-
-```elixir
-wat = "(module (func (export \"main\") (result i32) i32.const 42))"
-wasm = Watusi.to_wasm(wat)
-# <<0, 97, 115, 109, 1, 0, 0, 0, ...>>
-
-# Including debug names
-wasm_with_names = Watusi.to_wasm(wat, debug_names: true)
-```
 
 ## Installation
 
-The package can be installed by adding `watusi` to your list of dependencies in `mix.exs`:
+Add `watusi` to your list of dependencies in `mix.exs`:
 
 ```elixir
 def deps do
@@ -60,3 +35,39 @@ def deps do
   ]
 end
 ```
+
+## Usage
+
+The primary entry point is `Watusi.to_wasm/2`. It accepts WAT source as a string or iodata and returns the compiled WASM binary.
+
+```elixir
+wat = \"\"\"
+(module
+  (func (export \"add\") (param $a i32) (param $b i32) (result i32)
+    local.get $a
+    local.get $b
+    i32.add)
+)
+\"\"\"
+
+wasm = Watusi.to_wasm(wat)
+# <<0, 97, 115, 109, 1, 0, 0, 0, ...>>
+```
+
+### Debug Names
+
+You can include symbolic identifiers in the binary by passing `debug_names: true`. This adds a standard `name` custom section to the output.
+
+```elixir
+wasm_with_names = Watusi.to_wasm(wat, debug_names: true)
+```
+
+## Testing
+
+Watusi is rigorously tested against the [WebAssembly Binary Toolkit (WABT)](https://github.com/WebAssembly/wabt). Our test suite verifies bit-for-bit parity with `wat2wasm` and validates all generated output with `wasm-validate`.
+
+Over 5,000 spec-compliant test vectors are included, covering core instructions and advanced extensions.
+
+## License
+
+Watusi is released under the MIT License. See the [LICENSE](LICENSE) file for details.

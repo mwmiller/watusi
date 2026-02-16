@@ -10,10 +10,18 @@ defmodule Watusi.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),
       aliases: aliases(),
-      description: "A WebAssembly Text (WAT) to Binary (WASM) converter.",
+      description: "A native Elixir WebAssembly Text (WAT) to Binary (WASM) converter.",
+      source_url: "https://github.com/mwmiller/watusi",
+      homepage_url: "https://github.com/mwmiller/watusi",
       package: [
+        maintainers: ["Matt Miller"],
         licenses: ["MIT"],
-        links: %{"GitHub" => "https://github.com/mwmiller/watusi"}
+        links: %{"GitHub" => "https://github.com/mwmiller/watusi"},
+        files: ~w(lib .formatter.exs mix.exs README.md LICENSE)
+      ],
+      docs: [
+        main: "Watusi",
+        extras: ["README.md"]
       ]
     ]
   end
@@ -44,7 +52,8 @@ defmodule Watusi.MixProject do
   defp deps do
     [
       {:leb128, "~> 1.0"},
-      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.31", only: :dev, runtime: false}
     ]
   end
 end
