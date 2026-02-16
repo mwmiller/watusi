@@ -1,0 +1,1 @@
+(module (func (result f64) (f64.abs (i64.const 0))))

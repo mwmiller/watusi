@@ -1,0 +1,1 @@
+(module (func $func-index (unreachable) (call 1)))

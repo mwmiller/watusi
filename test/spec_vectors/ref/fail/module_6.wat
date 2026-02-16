@@ -1,0 +1,1 @@
+(module (func $func-param-invalid (param (ref 1))))

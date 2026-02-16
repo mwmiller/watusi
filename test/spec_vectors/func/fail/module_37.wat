@@ -1,0 +1,1 @@
+(module (func $type-return-last-empty-vs-num (result i32) (return)))

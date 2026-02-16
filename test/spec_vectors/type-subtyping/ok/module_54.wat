@@ -1,0 +1,1 @@
+(module (rec (type $f01 (sub (func))) (type $f02 (sub $f01 (func)))) (rec (type $f11 (sub (func))) (type $f12 (sub $f01 (func)))) (func (import "M11" "f") (type $f11)))

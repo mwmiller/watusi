@@ -1,0 +1,1 @@
+(module (func (result v128) (i64x2.neg (i32.const 0))))

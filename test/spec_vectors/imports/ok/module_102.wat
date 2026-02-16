@@ -1,0 +1,1 @@
+(module (import "spectest" "table" (table 12 funcref)))

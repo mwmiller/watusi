@@ -1,0 +1,1 @@
+(module (func $i32x4.extmul_high_i16x8_s-arg-empty (result v128) (i32x4.extmul_high_i16x8_s)))

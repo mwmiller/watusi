@@ -1,0 +1,1 @@
+(module (import "test-table64-10-20" "table64-10-20" (table 10 20 funcref)))

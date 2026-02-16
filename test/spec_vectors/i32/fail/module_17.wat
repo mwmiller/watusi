@@ -1,0 +1,1 @@
+(module (memory 0) (func $type-unary-operand-empty-in-load (i32.load (i32.eqz)) (drop)))

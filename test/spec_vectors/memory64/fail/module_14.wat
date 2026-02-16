@@ -1,0 +1,1 @@
+(module (func (drop (i32.load8_s (i64.const 0)))))

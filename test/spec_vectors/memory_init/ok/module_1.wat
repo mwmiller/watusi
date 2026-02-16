@@ -1,0 +1,1 @@
+(module (memory (export "memory0") 1 1) (data (i32.const 2) "") (data "") (data (i32.const 12) "") (data "	") (func (export "test") (memory.init 1 (i32.const 7) (i32.const 0) (i32.const 4))) (func (export "load8_u") (param i32) (result i32) (i32.load8_u (local.get 0))))

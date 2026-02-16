@@ -1,0 +1,1 @@
+(module (func $unbound-func (call 1)))

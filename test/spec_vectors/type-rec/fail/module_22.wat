@@ -1,0 +1,1 @@
+(module (rec (type (struct)) (type $t (func))) (func $f) (global (ref $t) (ref.func $f)))

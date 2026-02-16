@@ -1,0 +1,1 @@
+(module (func $g (type 4)))

@@ -1,0 +1,1 @@
+(module (memory 1) (func (v128.store (f32.const 0) (v128.const i32x4 0 0 0 0))))

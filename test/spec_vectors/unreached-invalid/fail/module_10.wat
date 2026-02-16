@@ -1,0 +1,1 @@
+(module (func $type-unconsumed-poly0 (unreachable) (select)))

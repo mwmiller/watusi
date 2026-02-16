@@ -1,0 +1,1 @@
+(module (import "test" "memory-2-4" (memory 1)) (import "test" "table-10-inf" (memory 1)))

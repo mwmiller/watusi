@@ -1,0 +1,1 @@
+(module (func $type-break-operand-f64-vs-i32 (result f64) (i32.ctz (block (br 0 (i32.const 9))))))

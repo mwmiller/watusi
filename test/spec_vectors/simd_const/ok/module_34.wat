@@ -1,0 +1,1 @@
+(module (func (v128.const f32x4 1.0e38 1.0e38 1.0e38 1.0e38) drop))

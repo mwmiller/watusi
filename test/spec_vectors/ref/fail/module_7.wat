@@ -1,0 +1,1 @@
+(module (func $func-result-invalid (result (ref 1))))

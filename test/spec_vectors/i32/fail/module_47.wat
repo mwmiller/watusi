@@ -1,0 +1,1 @@
+(module (global $x (mut i32) (i32.const 0)) (func $type-binary-1st-operand-empty-in-global.set (global.set $x (i32.add)) (global.get $x) (drop)))

@@ -1,0 +1,1 @@
+(module (func $type-binary-2nd-operand-empty-in-call (call 1 (i32.const 0) (i32.add)) (drop)) (func (param i32 i32) (result i32) (local.get 0)))

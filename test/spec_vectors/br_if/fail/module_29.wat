@@ -1,0 +1,1 @@
+(module (func $large-label (br_if 268435457 (i32.const 1))))

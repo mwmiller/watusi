@@ -1,0 +1,1 @@
+(module (memory 1) (data (offset (i32.const 0)) "ªªªªªªªªªªªªªªªª") (func (export "as-i8x16.shl-operand") (result v128) (i8x16.shl (v128.load (i32.const 0)) (i32.const 1))))

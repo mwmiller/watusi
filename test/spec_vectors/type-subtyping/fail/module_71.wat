@@ -1,0 +1,1 @@
+(module (type $a (sub (struct (field (ref none))))) (type $b (sub $a (struct (field (ref any))))))

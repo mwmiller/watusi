@@ -1,0 +1,1 @@
+(module (func $unbound-label (br 1)))

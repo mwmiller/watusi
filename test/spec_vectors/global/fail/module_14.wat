@@ -1,0 +1,1 @@
+(module (global (import "" "") externref) (global funcref (global.get 0)))

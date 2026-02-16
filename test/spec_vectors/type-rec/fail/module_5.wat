@@ -1,0 +1,1 @@
+(module (rec (type $ft (func)) (type (func))) (func $f) (global (ref $ft) (ref.func $f)))

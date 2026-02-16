@@ -1,0 +1,1 @@
+(module (func $type-empty-vs-f64 (local f64) (local.get 0)))

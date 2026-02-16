@@ -1,0 +1,1 @@
+(module (rec (type (func (param (ref 1))))) (rec (type (func))))

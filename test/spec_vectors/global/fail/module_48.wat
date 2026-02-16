@@ -1,0 +1,1 @@
+(module (global $x (mut i32) (i32.const 0)) (func $f (param i32) (result i32) (local.get 0)) (type $sig (func (param i32) (result i32))) (table funcref (elem $f)) (func $type-global.set-value-empty-in-call_indirect (block (result i32) (call_indirect (type $sig) (global.set $x) (i32.const 0)))))

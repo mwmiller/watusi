@@ -1,0 +1,1 @@
+(module (func (result v128) (i16x8.avgr_u (i32.const 0) (f32.const 0.0))))

@@ -1,0 +1,1 @@
+(module $Tgt (table (export "table") 1 funcref) (func (export "grow") (result i32) (table.grow (ref.null func) (i32.const 1))))

@@ -1,0 +1,1 @@
+(module (global $x (mut i32) (i32.const 0)) (func $type-global.set-value-empty-in-call (call 1 (global.set $x))) (func (param i32) (result i32) (local.get 0)))

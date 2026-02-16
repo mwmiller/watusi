@@ -1,0 +1,1 @@
+(module (memory i64 1) (func $load32_s_i64 (i64.load32_s (i64.const 0))))

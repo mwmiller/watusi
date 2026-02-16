@@ -1,0 +1,1 @@
+(module (type (array (ref 1))))

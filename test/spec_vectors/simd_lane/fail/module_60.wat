@@ -1,0 +1,1 @@
+(module (func (result i32) (f32x4.extract_lane 4 (v128.const i8x16 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0))))

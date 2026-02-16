@@ -1,0 +1,1 @@
+(module (memory (export "memory0") i64 1 1) (data (i64.const 2) "") (data "") (data (i64.const 12) "") (data "	") (func (export "test") (nop)) (func (export "load8_u") (param i64) (result i32) (i32.load8_u (local.get 0))))

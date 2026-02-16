@@ -1,0 +1,1 @@
+(module (memory 1) (func i32.const 0 i32.load offset=18446744073709551615 drop))

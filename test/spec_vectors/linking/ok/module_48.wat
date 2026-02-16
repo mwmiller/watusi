@@ -1,0 +1,1 @@
+(module (table (import "Mt" "tab") 0 funcref) (elem (i32.const 10) $f) (func $f))

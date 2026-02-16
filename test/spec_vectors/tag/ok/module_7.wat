@@ -1,0 +1,1 @@
+(module (type $t (func)) (tag (import "M" "tag") (type $t)))

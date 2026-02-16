@@ -1,0 +1,1 @@
+(module (func $main (unreachable)) (start $main))

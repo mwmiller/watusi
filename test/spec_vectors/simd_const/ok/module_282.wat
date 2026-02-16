@@ -1,0 +1,1 @@
+(module (func (export "f") (result f64) (f64.const 5.357543035931337e300)))

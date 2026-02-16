@@ -1,0 +1,1 @@
+(module (memory 1 1) (func (export "testfn") (memory.copy (i32.const 10) (i64.const 20) (i64.const 30))))

@@ -1,0 +1,1 @@
+(module (func (result v128) (f64x2.pmin (i32.const 0) (f32.const 0.0))))

@@ -1,0 +1,1 @@
+(module (func (f32.const nan:8388607) drop))

@@ -1,0 +1,1 @@
+(module definition (table i64 18446744073709551615 funcref))

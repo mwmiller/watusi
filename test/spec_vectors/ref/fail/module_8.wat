@@ -1,0 +1,1 @@
+(module (func $func-local-invalid (local (ref null 1))))

@@ -1,0 +1,1 @@
+(module (memory 2) (data (i32.const -100) "a"))

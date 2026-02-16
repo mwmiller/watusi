@@ -1,0 +1,1 @@
+(module (global i32 (global.get 0)))

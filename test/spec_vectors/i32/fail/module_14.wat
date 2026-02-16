@@ -1,0 +1,1 @@
+(module (func $type-unary-operand-empty-in-local.tee (local i32) (local.tee 0 (i32.eqz)) (drop)))

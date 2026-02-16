@@ -1,0 +1,1 @@
+(module (import "test" "func" (global i32)))

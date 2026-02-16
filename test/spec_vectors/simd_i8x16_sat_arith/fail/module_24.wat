@@ -1,0 +1,1 @@
+(module (func $i8x16.sub_sat_u-arg-empty (result v128) (i8x16.sub_sat_u)))

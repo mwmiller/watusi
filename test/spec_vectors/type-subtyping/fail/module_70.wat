@@ -1,0 +1,1 @@
+(module (type $a (sub (array (ref any)))) (type $b (sub $a (array (mut (ref any))))))

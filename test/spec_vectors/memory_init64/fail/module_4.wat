@@ -1,0 +1,1 @@
+(module (func (export "test") (data.drop 0)))

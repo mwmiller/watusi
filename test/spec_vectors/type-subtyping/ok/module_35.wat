@@ -1,0 +1,1 @@
+(module (type $t1 (sub (func))) (type $t2 (sub final (func))) (func (import "M2" "f1") (type $t2)))

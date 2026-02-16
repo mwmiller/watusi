@@ -1,7 +1,5 @@
 defmodule Watusi.Parser do
-  @moduledoc """
-  S-expression parser for Watusi.
-  """
+  @moduledoc false
 
   def parse(tokens) do
     {result, []} = do_parse(tokens, [])

@@ -1,0 +1,1 @@
+(module (type (func (param i32))) (table 1 funcref) (func $conditional-dangling-type (if (i32.const 1) (then (call_indirect (type 4294967295) (i32.const 0))))))

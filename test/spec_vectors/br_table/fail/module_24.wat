@@ -1,0 +1,1 @@
+(module (func $large-label-default (block (br_table 0 0 268435457 (i32.const 1)))))

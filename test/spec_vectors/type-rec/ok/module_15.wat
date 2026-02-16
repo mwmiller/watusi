@@ -1,0 +1,1 @@
+(module (rec (type (struct)) (type $f2 (func))) (func (import "M" "f") (type $f2)))

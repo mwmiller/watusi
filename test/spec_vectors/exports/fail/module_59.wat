@@ -1,0 +1,1 @@
+(module (export "a" (table 0)))

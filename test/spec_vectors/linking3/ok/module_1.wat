@@ -1,0 +1,1 @@
+(module (func $host (import "spectest" "print")) (memory (import "Mm" "mem1") 1) (table (import "Mm" "tab") 0 funcref) (data (i32.const 0) "abc"))

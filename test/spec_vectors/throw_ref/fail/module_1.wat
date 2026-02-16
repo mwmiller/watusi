@@ -1,0 +1,1 @@
+(module (func (throw_ref)))

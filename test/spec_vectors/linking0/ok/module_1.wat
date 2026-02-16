@@ -1,0 +1,1 @@
+(module (table (import "Mt" "tab") 10 funcref) (memory (import "spectest" "memory") 1) (memory (import "Mt" "mem") 1) (func $f (result i32) (i32.const 0)) (elem (i32.const 7) $f) (elem (i32.const 9) $f))

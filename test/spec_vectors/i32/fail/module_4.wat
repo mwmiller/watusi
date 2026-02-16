@@ -1,0 +1,1 @@
+(module (func $type-unary-operand-empty-in-if (i32.const 0) (i32.const 0) (if (then (i32.eqz) (drop)))))

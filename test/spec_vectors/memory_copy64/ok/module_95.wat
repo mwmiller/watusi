@@ -1,0 +1,1 @@
+(module (memory i64 1 1) (func (export "test") (memory.copy (i64.const 131072) (i64.const 131072) (i64.const 0))))

@@ -1,0 +1,1 @@
+(module (func (result i32) (try_table (result i32))))

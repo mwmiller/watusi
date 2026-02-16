@@ -1,0 +1,1 @@
+(module (func $i8x16.sub-1st-arg-empty (result v128) (i8x16.sub (v128.const i8x16 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0))))

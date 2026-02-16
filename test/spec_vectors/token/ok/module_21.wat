@@ -1,0 +1,1 @@
+(module (func (block $l (i32.const 0) (br_table $l 0))))

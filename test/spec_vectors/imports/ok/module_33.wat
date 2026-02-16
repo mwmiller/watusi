@@ -1,0 +1,1 @@
+(module (import "test" "func-i32->i32" (func (result i32))))

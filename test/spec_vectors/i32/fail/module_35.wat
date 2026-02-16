@@ -1,0 +1,1 @@
+(module (func $type-binary-1st-operand-empty-in-return (return (i32.add)) (drop)))

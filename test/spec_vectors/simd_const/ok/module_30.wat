@@ -1,0 +1,1 @@
+(module (func (v128.const i64x2 123456789 123456789) drop))

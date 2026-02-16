@@ -1,0 +1,1 @@
+(module (func $type-unary-operand-empty-in-call (call 1 (i32.eqz)) (drop)) (func (param i32) (result i32) (local.get 0)))

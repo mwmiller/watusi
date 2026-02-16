@@ -1,0 +1,1 @@
+(module (func (i32.const 123456789) drop))

@@ -1,0 +1,1 @@
+(module (func (type 42)))

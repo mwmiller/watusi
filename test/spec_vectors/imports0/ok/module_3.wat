@@ -1,0 +1,1 @@
+(module (import "test" "memory-2-inf" (global i32)))

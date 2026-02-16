@@ -1,0 +1,1 @@
+(module (type (array (mut (ref null 10)))))

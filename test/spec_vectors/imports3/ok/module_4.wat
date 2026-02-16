@@ -1,0 +1,1 @@
+(module (import "test" "memory-2-4" (memory 1)) (import "spectest" "print_i32" (memory 1)))

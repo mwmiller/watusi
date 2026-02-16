@@ -1,0 +1,1 @@
+(module (func (result f64) (f64.ceil (i64.const 0))))

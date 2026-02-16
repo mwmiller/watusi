@@ -1,0 +1,1 @@
+(module (type (struct (field (mut (ref 1))))))

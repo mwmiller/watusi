@@ -1,0 +1,1 @@
+(module (memory 1) (func $type-binary-1st-operand-empty-in-store (i32.store (i32.add) (i32.const 1))))

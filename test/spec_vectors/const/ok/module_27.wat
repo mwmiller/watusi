@@ -1,0 +1,1 @@
+(module (func (f32.const 156374987061.47556) drop))

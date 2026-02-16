@@ -1,0 +1,1 @@
+(module (table 1 0 funcref))

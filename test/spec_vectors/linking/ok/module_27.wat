@@ -1,0 +1,1 @@
+(module (global (import "Mref_ex" "g-var-refnull") (mut (ref func))))

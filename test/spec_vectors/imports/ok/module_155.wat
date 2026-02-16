@@ -1,0 +1,1 @@
+(module (import "spectest" "global_i32" (memory 1)))

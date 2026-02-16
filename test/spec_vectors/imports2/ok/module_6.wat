@@ -1,0 +1,1 @@
+(module (import "spectest" "unknown" (memory 1)))

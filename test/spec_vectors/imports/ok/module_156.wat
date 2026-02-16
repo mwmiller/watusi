@@ -1,0 +1,1 @@
+(module (import "spectest" "table" (memory 1)))

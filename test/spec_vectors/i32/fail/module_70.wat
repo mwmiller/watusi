@@ -1,0 +1,1 @@
+(module (func (result i32) (i32.eqz (i64.const 0))))

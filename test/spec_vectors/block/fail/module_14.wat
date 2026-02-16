@@ -1,0 +1,1 @@
+(module (func $type-empty-i64 (result i64) (block)))

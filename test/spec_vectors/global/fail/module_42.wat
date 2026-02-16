@@ -1,0 +1,1 @@
+(module (global $x (mut i32) (i32.const 0)) (func $type-global.set-value-empty-in-br (i32.const 0) (block (br 0 (global.set $x)))))

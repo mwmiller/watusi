@@ -1,0 +1,1 @@
+(module (global i32 (i32.ctz (i32.const 0))))

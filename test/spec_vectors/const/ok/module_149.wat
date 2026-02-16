@@ -1,0 +1,1 @@
+(module (func (f64.const -8.98846567431158e307) drop))

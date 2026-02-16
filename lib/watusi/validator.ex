@@ -1,14 +1,11 @@
 defmodule Watusi.Validator do
-  @moduledoc """
-  Semantic validator for WASM instruction sequences.
-  Ensures operand stack consistency and type safety.
-  """
+  @moduledoc false
   alias Watusi.Instructions
 
   def validate_function(instructions, signature, ctx) do
     # results is a list of expected return types
     {_params, results} = signature
-    
+
     # Control stack frame: {expected_results, initial_stack_size}
     # For the function body, we expect 'results' and start with empty stack.
     do_validate(instructions, [], ctx, [{results, 0}])
@@ -18,6 +15,7 @@ defmodule Watusi.Validator do
   defp do_validate([], stack, _ctx, [{expected, start_size} | _]) do
     # Current stack (minus what was there before the block) must match expected results
     actual = Enum.take(stack, length(stack) - start_size)
+
     if types_match?(actual, expected) do
       :ok
     else
@@ -37,6 +35,7 @@ defmodule Watusi.Validator do
         # Pop control frame and verify its result
         [{expected, start_size} | outer_blocks] = blocks
         actual = Enum.take(stack, length(stack) - start_size)
+
         if types_match?(actual, expected) do
           # The outer block continues with the results of this block on its stack
           new_stack = Enum.drop(stack, length(actual)) ++ expected
@@ -56,6 +55,7 @@ defmodule Watusi.Validator do
   end
 
   defp pop_and_verify(stack, []), do: stack
+
   defp pop_and_verify([actual | rest], [expected | expected_rest]) do
     if type_matches?(actual, expected) do
       pop_and_verify(rest, expected_rest)
@@ -63,7 +63,8 @@ defmodule Watusi.Validator do
       raise "Type mismatch: expected #{expected}, got #{actual}"
     end
   end
-  defp pop_and_verify([], [expected | _]), do: raise "Stack underflow: expected #{expected}"
+
+  defp pop_and_verify([], [expected | _]), do: raise("Stack underflow: expected #{expected}")
 
   defp type_matches?(_actual, :any), do: true
   defp type_matches?(t, t), do: true

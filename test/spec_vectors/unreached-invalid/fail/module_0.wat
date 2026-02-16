@@ -1,0 +1,1 @@
+(module (func $local-index (unreachable) (drop (local.get 0))))

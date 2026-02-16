@@ -1,0 +1,1 @@
+(module (func $type-value-void-vs-f32 (result f32) (block (result f32) (nop))))

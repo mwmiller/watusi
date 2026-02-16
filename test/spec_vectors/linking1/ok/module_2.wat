@@ -1,0 +1,1 @@
+(module $Om (memory (import "Mm" "mem1") 1) (data (i32.const 5) " ¡¢£¤¥¦§") (func (export "load") (param $a i32) (result i32) (i32.load8_u (local.get 0))))

@@ -1,0 +1,1 @@
+(module (import "test" "memory-2-4" (table 10 funcref)))

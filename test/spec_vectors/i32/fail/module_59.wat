@@ -1,0 +1,1 @@
+(module (func (result i32) (i32.mul (i64.const 0) (f32.const 0))))

@@ -1,0 +1,1 @@
+(module (memory 1) (func $type-address-empty (i32.store)))

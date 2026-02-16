@@ -1,0 +1,1 @@
+(module (func $type-break-operand-void-vs-nums (result i32) (i32.add (block (br 0 (nop))))))

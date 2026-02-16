@@ -1,0 +1,1 @@
+(module (table i64 4294967295 0 funcref))

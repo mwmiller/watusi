@@ -1,0 +1,1 @@
+(module (type $arr (array i31ref)) (elem $e i31ref (ref.i31 (i32.const 170)) (ref.i31 (i32.const 187)) (ref.i31 (i32.const 204)) (ref.i31 (i32.const 221))) (func (export "array-new-elem") (param i32 i32) (result (ref $arr)) (array.new_elem $arr $e (local.get 0) (local.get 1))))

@@ -1,0 +1,1 @@
+(module (tag (import "test" "func-i32") (param f32)))

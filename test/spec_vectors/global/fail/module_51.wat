@@ -1,0 +1,1 @@
+(module (global $g1 i32 (global.get $g2)) (global $g2 i32 (i32.const 0)))

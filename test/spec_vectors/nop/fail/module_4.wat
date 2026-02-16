@@ -1,0 +1,1 @@
+(module (func $type-f64 (result f64) (nop)))

@@ -1,0 +1,1 @@
+(module (import "reexport_f" "print" (func (param i64))))

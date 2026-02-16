@@ -1,0 +1,1 @@
+(module (func (export "f") (result f32) (f32.const 3.4028235677973366e38)))

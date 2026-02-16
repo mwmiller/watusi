@@ -1,0 +1,1 @@
+(module (start $f) (func $f (drop (ref.func $f))))

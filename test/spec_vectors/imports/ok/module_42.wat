@@ -1,0 +1,1 @@
+(module (tag (import "test" "tag") (param f32)))

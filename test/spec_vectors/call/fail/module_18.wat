@@ -1,0 +1,1 @@
+(module (func $large-func (call 1012321300)))

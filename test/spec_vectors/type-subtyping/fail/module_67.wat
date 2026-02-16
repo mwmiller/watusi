@@ -1,0 +1,1 @@
+(module (type $a (sub (array (ref none)))) (type $b (sub $a (array (ref any)))))

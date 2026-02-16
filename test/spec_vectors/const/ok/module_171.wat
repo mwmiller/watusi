@@ -1,0 +1,1 @@
+(module (func (f64.const nan:4503599627370495) drop))

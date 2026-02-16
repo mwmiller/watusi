@@ -1,0 +1,1 @@
+(module (global $g funcref (ref.null func)) (table $t 10 funcref (global.get $g)))

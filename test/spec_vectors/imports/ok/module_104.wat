@@ -1,0 +1,1 @@
+(module (import "test" "func" (table 10 funcref)))

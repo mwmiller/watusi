@@ -1,0 +1,1 @@
+(module (func $type-first-empty-in-loop (loop (call 1))) (func (param i32)))

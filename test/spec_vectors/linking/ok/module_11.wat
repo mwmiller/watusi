@@ -1,0 +1,1 @@
+(module (global (import "Mref_ex" "g-const-extern") (ref null func)))

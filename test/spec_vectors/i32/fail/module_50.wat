@@ -1,0 +1,1 @@
+(module (memory 0) (func $type-binary-2nd-operand-empty-in-memory.grow (memory.grow (i32.const 0) (i32.add)) (drop)))

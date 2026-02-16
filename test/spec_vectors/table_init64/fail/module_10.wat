@@ -1,0 +1,1 @@
+(module (func (export "test") (elem.drop 0)))

@@ -1,0 +1,1 @@
+(module (global (import "test" "global-i32") i32) (global i32 (i32.const 0) (global.get 0)))

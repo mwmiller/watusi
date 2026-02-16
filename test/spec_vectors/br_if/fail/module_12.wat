@@ -1,0 +1,1 @@
+(module (func $type-true-arg-num-vs-void (block (br_if 0 (i32.const 0) (i32.const 1)))))
