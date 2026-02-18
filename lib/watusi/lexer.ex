@@ -46,7 +46,7 @@ defmodule Watusi.Lexer do
 
   # Symbolic identifiers
   defp do_tokenize(<<"$", rest::binary>>, acc) do
-    {id, rest} = read_identifier(rest, <<>>)
+    {id, rest} = read_identifier(rest, nil)
     do_tokenize(rest, [{:id, id} | acc])
   end
 
@@ -102,15 +102,22 @@ defmodule Watusi.Lexer do
   defp escape(?"), do: ?"
   defp escape(c), do: c
 
-  defp read_identifier(<<c, rest::binary>>, acc) when is_id_char(c),
-    do: read_identifier(rest, <<acc::binary, c>>)
+  defp read_identifier(input, _acc) do
+    len = count_id_chars(input, 0)
+    <<id::binary-size(len), rest::binary>> = input
+    {id, rest}
+  end
 
-  defp read_identifier(rest, acc), do: {acc, rest}
+  defp read_atom(first, rest) do
+    len = count_id_chars(rest, 0)
+    <<atom_tail::binary-size(len), remaining::binary>> = rest
+    {<<first::binary, atom_tail::binary>>, remaining}
+  end
 
-  defp read_atom(acc, <<c, rest::binary>>) when is_id_char(c),
-    do: read_atom(<<acc::binary, c>>, rest)
+  defp count_id_chars(<<c, rest::binary>>, count) when is_id_char(c),
+    do: count_id_chars(rest, count + 1)
 
-  defp read_atom(acc, rest), do: {acc, rest}
+  defp count_id_chars(_, count), do: count
 
   defp classify_atom(atom) do
     case Map.get(@special_floats, atom) do
