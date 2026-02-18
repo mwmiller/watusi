@@ -4,6 +4,10 @@ defmodule Watusi.Encoder do
   alias Watusi.Encoder.Instructions, as: InstrEncoder
   alias Watusi.Encoder.Sections
 
+  @wasm_magic <<0x00, 0x61, 0x73, 0x6D>>
+  @wasm_version <<0x01, 0x00, 0x00, 0x00>>
+  @wasm_header <<@wasm_magic::binary, @wasm_version::binary>>
+
   def encode([[{:keyword, "module"} | rest]], opts \\ []) do
     debug_names = Keyword.get(opts, :debug_names, false)
 
@@ -20,7 +24,7 @@ defmodule Watusi.Encoder do
         other -> other
       end
 
-    header = <<0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00>>
+    header = @wasm_header
     sections = Sections.group_sections(body)
     counts = resolve_counts(sections.imports)
     exports = collect_exports(body, counts)
