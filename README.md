@@ -36,7 +36,7 @@ Add `watusi` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:watusi, "~> 0.3.0"}
+    {:watusi, "~> 0.4.0"}
   ]
 end
 ```
@@ -58,6 +58,23 @@ wat = \"\"\"
 wasm = Watusi.to_wasm(wat)
 # <<0, 97, 115, 109, 1, 0, 0, 0, ...>>
 ```
+
+### Binary Patching
+
+For pre-compiled WASM templates, use `Watusi.Patcher` to replace data segments and global initializers:
+
+```elixir
+# Compile template once
+template = Watusi.to_wasm(interpreter_wat)
+
+# Patch with runtime data
+wasm = Watusi.Patcher.patch(template,
+  data: [{0x00000, story_bytes}],
+  globals: %{0 => version}
+)
+```
+
+See `doc/patcher.md` for details.
 
 ### Debug Names
 

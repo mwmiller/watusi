@@ -4,13 +4,14 @@ defmodule Watusi.MixProject do
   def project do
     [
       app: :watusi,
-      version: "0.3.0",
+      version: "0.4.0",
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
       elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),
       aliases: aliases(),
-      description: "A native Elixir WebAssembly Text (WAT) to Binary (WASM) converter.",
+      description:
+        "Native Elixir WebAssembly Text (WAT) to Binary (WASM) converter with binary patcher for runtime template customization.",
       source_url: "https://github.com/mwmiller/watusi",
       homepage_url: "https://github.com/mwmiller/watusi",
       package: [
