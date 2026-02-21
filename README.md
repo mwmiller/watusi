@@ -1,15 +1,20 @@
 # Watusi
 
-A native Elixir implementation for converting WebAssembly Text (WAT) to the WebAssembly Binary Format (WASM).
+A high-performance, native Elixir implementation for converting WebAssembly Text (WAT) to the WebAssembly Binary Format (WASM).
 
 Watusi provides a pure-Elixir pipeline for transforming human-readable WebAssembly into the standard binary format, supporting modern extensions and ensuring full compatibility with official tooling.
 
 ## Why Watusi?
 
-- **Native Elixir**: No dependencies on external tools like `wat2wasm` for basic operation.
-- **Modern Standards**: Support for Bulk Memory, SIMD, Threads, and Exception Handling.
-- **Developer Friendly**: Optional support for debug names and detailed identifier resolution.
-- **High Performance**: Optimized for speed and low memory overhead during the encoding process.
+- **Native Elixir**: No external dependencies or tools required - pure Elixir implementation.
+- **High Performance**: Optimized lexer and encoder with compile-time code generation for maximum speed.
+- **Modern Standards**: Full support for Bulk Memory, SIMD, Threads, Exception Handling, and GC proposals.
+- **Developer Friendly**: Optional debug names and detailed identifier resolution.
+- **Spec Compliant**: Rigorously tested against 5,000+ official WebAssembly test vectors.
+
+## Performance
+
+Watusi is optimized for speed with typical compilation times for real-world modules in the single-digit milliseconds range.
 
 ## Specifications
 
@@ -31,7 +36,7 @@ Add `watusi` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:watusi, "~> 0.1.0"}
+    {:watusi, "~> 0.3.0"}
   ]
 end
 ```

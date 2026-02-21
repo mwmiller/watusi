@@ -147,34 +147,65 @@ defmodule Watusi.Lexer do
   end
 
   defp integer_string?(s) do
-    s = String.replace(s, "_", "")
-
     case s do
       <<"0x", hex::binary>> -> hex_string?(hex)
       <<"-0x", hex::binary>> -> hex_string?(hex)
       <<"+0x", hex::binary>> -> hex_string?(hex)
-      _ -> match?({_, ""}, Integer.parse(s))
+      _ -> decimal_string?(s)
     end
   end
+
+  defp decimal_string?(<<c, rest::binary>>) when c in ?0..?9, do: decimal_string?(rest)
+  defp decimal_string?(<<"-", rest::binary>>), do: decimal_string?(rest)
+  defp decimal_string?(<<"+", rest::binary>>), do: decimal_string?(rest)
+  defp decimal_string?(<<"_", rest::binary>>), do: decimal_string?(rest)
+  defp decimal_string?(<<>>), do: true
+  defp decimal_string?(_), do: false
 
   defp hex_string?(""), do: false
   defp hex_string?(s), do: do_hex_string?(s)
 
   defp do_hex_string?(<<c, rest::binary>>) when is_hex(c), do: do_hex_string?(rest)
+  defp do_hex_string?(<<"_", rest::binary>>), do: do_hex_string?(rest)
   defp do_hex_string?(<<>>), do: true
   defp do_hex_string?(_), do: false
 
   defp parse_integer(s) do
-    s = String.replace(s, "_", "")
-
     case s do
-      <<"0x", hex::binary>> -> String.to_integer(hex, 16)
-      <<"-0x", hex::binary>> -> -String.to_integer(hex, 16)
-      <<"+0x", hex::binary>> -> String.to_integer(hex, 16)
-      <<"+", rest::binary>> -> String.to_integer(rest)
-      _ -> String.to_integer(s)
+      <<"0x", hex::binary>> -> parse_hex_int(hex, 1)
+      <<"-0x", hex::binary>> -> parse_hex_int(hex, -1)
+      <<"+0x", hex::binary>> -> parse_hex_int(hex, 1)
+      <<"+", rest::binary>> -> parse_decimal_int(rest)
+      _ -> parse_decimal_int(s)
     end
   end
+
+  defp parse_hex_int(s, sign), do: sign * parse_hex_int_acc(s, 0)
+
+  defp parse_hex_int_acc(<<c, rest::binary>>, acc) when c in ?0..?9,
+    do: parse_hex_int_acc(rest, acc * 16 + (c - ?0))
+
+  defp parse_hex_int_acc(<<c, rest::binary>>, acc) when c in ?a..?f,
+    do: parse_hex_int_acc(rest, acc * 16 + (c - ?a + 10))
+
+  defp parse_hex_int_acc(<<c, rest::binary>>, acc) when c in ?A..?F,
+    do: parse_hex_int_acc(rest, acc * 16 + (c - ?A + 10))
+
+  defp parse_hex_int_acc(<<"_", rest::binary>>, acc), do: parse_hex_int_acc(rest, acc)
+  defp parse_hex_int_acc(<<>>, acc), do: acc
+
+  defp parse_decimal_int(s), do: parse_decimal_int_acc(s, 0, 1)
+
+  defp parse_decimal_int_acc(<<"-", rest::binary>>, 0, 1),
+    do: parse_decimal_int_acc(rest, 0, -1)
+
+  defp parse_decimal_int_acc(<<c, rest::binary>>, acc, sign) when c in ?0..?9,
+    do: parse_decimal_int_acc(rest, acc * 10 + (c - ?0), sign)
+
+  defp parse_decimal_int_acc(<<"_", rest::binary>>, acc, sign),
+    do: parse_decimal_int_acc(rest, acc, sign)
+
+  defp parse_decimal_int_acc(<<>>, acc, sign), do: acc * sign
 
   defp float_string?(s) do
     clean_s = String.replace(s, "_", "")
@@ -236,14 +267,39 @@ defmodule Watusi.Lexer do
   defp handle_float_error(<<"+", rest::binary>>), do: parse_float(rest)
   defp handle_float_error(s), do: raise("Invalid float literal: #{s}")
 
-  defp hex_float_string?(s),
-    do: s =~ ~r/^[+-]?0x([0-9a-fA-F_]+\.?|[0-9a-fA-F_]*\.[0-9a-fA-F_]*)([pP][+-]?[0-9_]+)?$/
+  defp hex_float_string?(<<"0x", rest::binary>>), do: hex_float_body?(rest)
+  defp hex_float_string?(<<"+0x", rest::binary>>), do: hex_float_body?(rest)
+  defp hex_float_string?(<<"-0x", rest::binary>>), do: hex_float_body?(rest)
+  defp hex_float_string?(_), do: false
+
+  defp hex_float_body?(<<c, rest::binary>>) when is_hex(c), do: hex_float_body?(rest)
+  defp hex_float_body?(<<"_", rest::binary>>), do: hex_float_body?(rest)
+  defp hex_float_body?(<<".", rest::binary>>), do: hex_float_after_dot?(rest)
+  defp hex_float_body?(<<"p", rest::binary>>), do: hex_float_exp?(rest)
+  defp hex_float_body?(<<"P", rest::binary>>), do: hex_float_exp?(rest)
+  defp hex_float_body?(<<>>), do: true
+  defp hex_float_body?(_), do: false
+
+  defp hex_float_after_dot?(<<c, rest::binary>>) when is_hex(c), do: hex_float_after_dot?(rest)
+  defp hex_float_after_dot?(<<"_", rest::binary>>), do: hex_float_after_dot?(rest)
+  defp hex_float_after_dot?(<<"p", rest::binary>>), do: hex_float_exp?(rest)
+  defp hex_float_after_dot?(<<"P", rest::binary>>), do: hex_float_exp?(rest)
+  defp hex_float_after_dot?(<<>>), do: true
+  defp hex_float_after_dot?(_), do: false
+
+  defp hex_float_exp?(<<"+", rest::binary>>), do: hex_float_exp_digits?(rest)
+  defp hex_float_exp?(<<"-", rest::binary>>), do: hex_float_exp_digits?(rest)
+  defp hex_float_exp?(rest), do: hex_float_exp_digits?(rest)
+
+  defp hex_float_exp_digits?(<<c, rest::binary>>) when c in ?0..?9,
+    do: hex_float_exp_digits?(rest)
+
+  defp hex_float_exp_digits?(<<"_", rest::binary>>), do: hex_float_exp_digits?(rest)
+  defp hex_float_exp_digits?(<<>>), do: true
+  defp hex_float_exp_digits?(_), do: false
 
   defp parse_hex_float(s) do
     # Hex floats are required for precise IEEE 754 representation.
-    # We strip underscores which are purely for readability.
-    s = String.replace(s, "_", "")
-
     {sign, rest} =
       case s do
         <<"-", tail::binary>> -> {-1, tail}
@@ -260,7 +316,7 @@ defmodule Watusi.Lexer do
       end
 
     significand = parse_hex_significand(significand_str)
-    exponent = String.to_integer(exponent_str)
+    exponent = parse_signed_decimal(exponent_str)
 
     try do
       sign * significand * :math.pow(2.0, exponent)
@@ -273,42 +329,81 @@ defmodule Watusi.Lexer do
     end
   end
 
+  defp parse_signed_decimal(s), do: parse_signed_decimal_acc(s, 0, 1)
+
+  defp parse_signed_decimal_acc(<<"-", rest::binary>>, 0, 1),
+    do: parse_signed_decimal_acc(rest, 0, -1)
+
+  defp parse_signed_decimal_acc(<<"+", rest::binary>>, 0, 1),
+    do: parse_signed_decimal_acc(rest, 0, 1)
+
+  defp parse_signed_decimal_acc(<<c, rest::binary>>, acc, sign) when c in ?0..?9,
+    do: parse_signed_decimal_acc(rest, acc * 10 + (c - ?0), sign)
+
+  defp parse_signed_decimal_acc(<<"_", rest::binary>>, acc, sign),
+    do: parse_signed_decimal_acc(rest, acc, sign)
+
+  defp parse_signed_decimal_acc(<<>>, acc, sign), do: acc * sign
+
   defp parse_hex_significand(s) do
     case String.split(s, ".") do
       [whole] ->
-        String.to_integer(whole, 16) / 1
+        parse_hex_whole(whole) / 1
 
       [whole, ""] ->
-        String.to_integer(whole, 16) / 1
+        parse_hex_whole(whole) / 1
 
       [whole, frac] ->
-        w =
-          case whole do
-            "" -> 0
-            _ -> String.to_integer(whole, 16)
-          end
-
+        w = if whole == "", do: 0, else: parse_hex_whole(whole)
         f = parse_hex_frac(frac)
         w + f
     end
   end
 
+  defp parse_hex_whole(s), do: parse_hex_whole_acc(s, 0)
+
+  defp parse_hex_whole_acc(<<c, rest::binary>>, acc) when c in ?0..?9,
+    do: parse_hex_whole_acc(rest, acc * 16 + (c - ?0))
+
+  defp parse_hex_whole_acc(<<c, rest::binary>>, acc) when c in ?a..?f,
+    do: parse_hex_whole_acc(rest, acc * 16 + (c - ?a + 10))
+
+  defp parse_hex_whole_acc(<<c, rest::binary>>, acc) when c in ?A..?F,
+    do: parse_hex_whole_acc(rest, acc * 16 + (c - ?A + 10))
+
+  defp parse_hex_whole_acc(<<"_", rest::binary>>, acc), do: parse_hex_whole_acc(rest, acc)
+  defp parse_hex_whole_acc(<<>>, acc), do: acc
+
   defp parse_hex_frac(frac), do: do_parse_hex_frac(frac, 16.0, 0.0)
 
-  defp do_parse_hex_frac(<<c, rest::binary>>, divisor, acc) do
-    val = String.to_integer(<<c>>, 16)
-    do_parse_hex_frac(rest, divisor * 16.0, acc + val / divisor)
+  defp do_parse_hex_frac(<<c, rest::binary>>, divisor, acc) when c in ?0..?9 do
+    do_parse_hex_frac(rest, divisor * 16.0, acc + (c - ?0) / divisor)
+  end
+
+  defp do_parse_hex_frac(<<c, rest::binary>>, divisor, acc) when c in ?a..?f do
+    do_parse_hex_frac(rest, divisor * 16.0, acc + (c - ?a + 10) / divisor)
+  end
+
+  defp do_parse_hex_frac(<<c, rest::binary>>, divisor, acc) when c in ?A..?F do
+    do_parse_hex_frac(rest, divisor * 16.0, acc + (c - ?A + 10) / divisor)
+  end
+
+  defp do_parse_hex_frac(<<"_", rest::binary>>, divisor, acc) do
+    do_parse_hex_frac(rest, divisor, acc)
   end
 
   defp do_parse_hex_frac(<<>>, _divisor, acc), do: acc
 
-  defp nan_payload_string?(s),
-    do: s =~ ~r/^[+-]?nan:0x[0-9a-fA-F_]+$/ or s =~ ~r/^[+-]?nan:[0-9_]+$/
+  defp nan_payload_string?(<<"nan:0x", rest::binary>>), do: hex_string?(rest)
+  defp nan_payload_string?(<<"+nan:0x", rest::binary>>), do: hex_string?(rest)
+  defp nan_payload_string?(<<"-nan:0x", rest::binary>>), do: hex_string?(rest)
+  defp nan_payload_string?(<<"nan:", rest::binary>>), do: decimal_string?(rest)
+  defp nan_payload_string?(<<"+nan:", rest::binary>>), do: decimal_string?(rest)
+  defp nan_payload_string?(<<"-nan:", rest::binary>>), do: decimal_string?(rest)
+  defp nan_payload_string?(_), do: false
 
   defp parse_nan_payload(s) do
     # NaN payloads allow encoding diagnostic information in the float bit-pattern
-    s = String.replace(s, "_", "")
-
     {sign, rest} =
       case s do
         <<"-", tail::binary>> -> {-1, tail}
@@ -320,8 +415,8 @@ defmodule Watusi.Lexer do
 
     payload =
       case payload_str do
-        <<"0x", hex::binary>> -> String.to_integer(hex, 16)
-        _dec -> String.to_integer(payload_str)
+        <<"0x", hex::binary>> -> parse_hex_whole(hex)
+        _dec -> parse_decimal_int_acc(payload_str, 0, 1)
       end
 
     {:nan, sign, payload}

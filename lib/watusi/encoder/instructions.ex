@@ -3,6 +3,7 @@ defmodule Watusi.Encoder.Instructions do
   alias Watusi.Encoder.Common
   alias Watusi.Encoder.Sections
   alias Watusi.Instructions
+  alias Watusi.LEB128
   import Bitwise
 
   @control_flow_ops ["block", "loop", "if", "try", "try_table"]
@@ -560,12 +561,14 @@ defmodule Watusi.Encoder.Instructions do
   end
 
   defp encode_standard_instruction(name, args, ctx, labels) do
+    immediates = encode_immediates(name, args, ctx, labels)
+
     case Instructions.opcode(name) do
-      {:fc, op} -> [<<0xFC>>, Common.encode_u32(op) | encode_immediates(name, args, ctx, labels)]
-      {:fd, op} -> [<<0xFD>>, Common.encode_u32(op) | encode_immediates(name, args, ctx, labels)]
-      {:fe, op} -> [<<0xFE>>, Common.encode_u32(op) | encode_immediates(name, args, ctx, labels)]
-      {:fb, op} -> [<<0xFB>>, Common.encode_u32(op) | encode_immediates(name, args, ctx, labels)]
-      opcode -> [opcode | encode_immediates(name, args, ctx, labels)]
+      {:fc, op} -> [<<0xFC>>, Common.encode_u32(op) | immediates]
+      {:fd, op} -> [<<0xFD>>, Common.encode_u32(op) | immediates]
+      {:fe, op} -> [<<0xFE>>, Common.encode_u32(op) | immediates]
+      {:fb, op} -> [<<0xFB>>, Common.encode_u32(op) | immediates]
+      opcode -> [opcode | immediates]
     end
   end
 
@@ -1833,15 +1836,15 @@ defmodule Watusi.Encoder.Instructions do
         other -> other
       end
 
-    rest
-    |> Enum.reject(fn
-      [{:keyword, "export"}, _] -> true
-      _ -> false
-    end)
-    |> do_collect_instructions(ctx, [], label_stack)
+    do_collect_instructions(rest, ctx, [], label_stack)
   end
 
   defp do_collect_instructions([], _ctx, acc, _labels), do: Enum.reverse(acc)
+
+  # Skip export declarations
+  defp do_collect_instructions([[{:keyword, "export"}, _] | rest], ctx, acc, labels) do
+    do_collect_instructions(rest, ctx, acc, labels)
+  end
 
   defp do_collect_instructions([[{:keyword, "try_table"} | args] | rest], ctx, acc, labels) do
     # try_table $id (result ...) (catch ...) ... end

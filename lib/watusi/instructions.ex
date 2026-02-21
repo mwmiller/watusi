@@ -560,28 +560,12 @@ defmodule Watusi.Instructions do
     "i64.atomic.rmw32.cmpxchg_u" => {:fe, 0x4E}
   }
 
-  # Hot path optimization: pattern match most common opcodes
-  def opcode("i32.const"), do: 0x41
-  def opcode("i32.add"), do: 0x6A
-  def opcode("i32.sub"), do: 0x6B
-  def opcode("i32.mul"), do: 0x6C
-  def opcode("i32.load"), do: 0x28
-  def opcode("i32.store"), do: 0x36
-  def opcode("local.get"), do: 0x20
-  def opcode("local.set"), do: 0x21
-  def opcode("local.tee"), do: 0x22
-  def opcode("call"), do: 0x10
-  def opcode("end"), do: 0x0B
-  def opcode("block"), do: 0x02
-  def opcode("loop"), do: 0x03
-  def opcode("if"), do: 0x04
-  def opcode("br"), do: 0x0C
-  def opcode("br_if"), do: 0x0D
-  def opcode("return"), do: 0x0F
-  def opcode("i64.const"), do: 0x42
-  def opcode("f32.const"), do: 0x43
-  def opcode("f64.const"), do: 0x44
-  def opcode(name), do: Map.fetch!(@opcodes, name)
+  # Generate opcode/1 function clauses at compile time for all instructions
+  for {name, opcode} <- @opcodes do
+    def opcode(unquote(name)), do: unquote(opcode)
+  end
+
+  def opcode(name), do: raise("Unknown instruction: #{name}")
 
   @valtypes %{
     "i32" => 0x7F,
@@ -607,7 +591,13 @@ defmodule Watusi.Instructions do
   def valtype({:keyword, name}), do: valtype(name)
   def valtype([{:keyword, "ref"}, _] = t), do: {:ref, t}
   def valtype([{:keyword, "ref"}, {:keyword, "null"}, _] = t), do: {:ref, t}
-  def valtype(name), do: Map.fetch!(@valtypes, name)
+
+  # Generate valtype/1 function clauses at compile time
+  for {name, code} <- @valtypes do
+    def valtype(unquote(name)), do: unquote(code)
+  end
+
+  def valtype(name), do: raise("Unknown valtype: #{name}")
 
   # Instruction metadata for validation
   @instr_meta %{

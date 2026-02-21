@@ -3,6 +3,7 @@ defmodule Watusi.Encoder.Sections do
   alias Watusi.Encoder.Common
   alias Watusi.Encoder.Instructions, as: InstrEncoder
   alias Watusi.Instructions
+  alias Watusi.LEB128
   import Bitwise
 
   # Mapping of WAT keywords to their corresponding WASM sections
@@ -1219,13 +1220,19 @@ defmodule Watusi.Encoder.Sections do
   defp group_locals([]), do: []
 
   defp group_locals([first | rest]) do
-    Enum.reduce(rest, [{1, first}], fn type, acc ->
-      case acc do
-        [{count, ^type} | tail] -> [{count + 1, type} | tail]
-        _ -> [{1, type} | acc]
-      end
-    end)
-    |> Enum.reverse()
+    do_group_locals(rest, first, 1, [])
+  end
+
+  defp do_group_locals([], current_type, count, acc) do
+    Enum.reverse([{count, current_type} | acc])
+  end
+
+  defp do_group_locals([type | rest], type, count, acc) do
+    do_group_locals(rest, type, count + 1, acc)
+  end
+
+  defp do_group_locals([type | rest], current_type, count, acc) do
+    do_group_locals(rest, type, 1, [{count, current_type} | acc])
   end
 
   # The Custom (name) section allows debuggers to show symbolic names for indices

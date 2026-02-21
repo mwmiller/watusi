@@ -4,7 +4,7 @@ defmodule Watusi.MixProject do
   def project do
     [
       app: :watusi,
-      version: "0.2.0",
+      version: "0.3.0",
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -51,7 +51,6 @@ defmodule Watusi.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:leb128, "~> 1.0"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.31", only: :dev, runtime: false}
     ]

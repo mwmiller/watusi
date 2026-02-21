@@ -1,5 +1,6 @@
 defmodule Watusi.Encoder.Common do
   @moduledoc false
+  alias Watusi.LEB128
 
   def encode_u32(v), do: LEB128.encode_unsigned(v)
 
