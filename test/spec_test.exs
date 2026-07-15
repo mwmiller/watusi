@@ -7,8 +7,8 @@ defmodule Watusi.SpecTest do
   # Paths of spec tests that are known to fail on the current toolchain
   # (e.g. missing proposal support in the installed wat2wasm 1.0.41).
   # These are excluded from default test runs via the :known_failure tag.
-  # Regenerate with: mix run /tmp/genfail*.exs-style script that replays
-  # assert_wasm_parity / assert_wasm_failure and lists failing .wat paths.
+  # Regenerate by running the :known_failure-tagged tests, recording the
+  # failing .wat paths, and writing them one-per-line here.
   @known_failures Path.join(__DIR__, "known_failures.txt")
                   |> File.read!()
                   |> String.split("\n", trim: true)

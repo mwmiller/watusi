@@ -1011,7 +1011,7 @@ defmodule Watusi.Encoder.Sections do
          _offset_node,
          _ctx
        ) do
-    [0x03, 0x00, Common.encode_vector(indices, &Common.encode_u32/1)]
+    [0x03, Common.encode_vector(indices, &Common.encode_u32/1)]
   end
 
   defp encode_elem_segment(
@@ -1033,12 +1033,12 @@ defmodule Watusi.Encoder.Sections do
          _offset_node,
          _ctx
        ) do
-    [0x01, 0x00, Common.encode_vector(indices, &Common.encode_u32/1)]
+    [0x01, Common.encode_vector(indices, &Common.encode_u32/1)]
   end
 
   defp encode_elem_segment(
          {false, false, true, 0, false},
-         _reftype_bytes,
+         reftype_bytes,
          encoded_exprs,
          _indices,
          offset_node,
@@ -1049,6 +1049,7 @@ defmodule Watusi.Encoder.Sections do
 
     [
       0x04,
+      reftype_bytes,
       Enum.map(offset_instrs, &InstrEncoder.encode_instruction(&1, ctx)),
       0x0B,
       encoded_exprs
@@ -1069,9 +1070,9 @@ defmodule Watusi.Encoder.Sections do
     [
       0x06,
       Common.encode_u32(table_idx),
+      reftype_bytes,
       Enum.map(offset_instrs, &InstrEncoder.encode_instruction(&1, ctx)),
       0x0B,
-      reftype_bytes,
       encoded_exprs
     ]
   end
@@ -1160,13 +1161,7 @@ defmodule Watusi.Encoder.Sections do
 
     reftype_str = reftype_to_string(reftype)
 
-    is_legacy_funcref_expr =
-      case {reftype_str in ["funcref", "func", "anyfunc"], expr_nodes, expr_ref_func_indices} do
-        {true, [_ | _], [_ | _]} -> length(expr_nodes) == length(expr_ref_func_indices)
-        _ -> false
-      end
-
-    has_expr_payload = expr_nodes != [] and not is_legacy_funcref_expr
+    has_expr_payload = expr_nodes != []
 
     bare_indices =
       rest
