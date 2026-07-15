@@ -934,7 +934,6 @@ defmodule Watusi.Encoder.Sections do
     inline_elem? = Enum.any?(rest, &match?({:inline_elem, true}, &1))
 
     {table_idx, rest} = resolve_elem_table_idx(rest, ctx)
-    explicit_table? = resolve_elem_table_explicit?(rest, ctx)
 
     # 3. Extract offset if present. It might be explicit '(offset ...)' or a raw instruction.
     offset_node =
@@ -952,12 +951,14 @@ defmodule Watusi.Encoder.Sections do
     is_declarative =
       Enum.any?(rest, &match?({:keyword, "declare"}, &1)) and not inline_elem?
 
-    reftype =
+    reftype_node =
       Enum.find(rest, fn
         {:keyword, k} when k in @reftypes -> true
         [{:keyword, "ref"} | _] -> true
         _ -> false
-      end) || "funcref"
+      end)
+
+    reftype = reftype_node || "funcref"
 
     expr_nodes =
       rest
@@ -967,27 +968,28 @@ defmodule Watusi.Encoder.Sections do
     {bare_indices, indices, _has_expr_payload} =
       resolve_elem_payload(rest, offset_node, expr_nodes, reftype, ctx)
 
-    # A segment uses the expr form (flags 4/5/6/7) when it carries any
-    # expression-style element (ref.func / ref.null / global.get / item), when the
-    # element type is a reference type other than the legacy funcref, or when it is
-    # an inline table element. Otherwise wat2wasm uses the legacy funcidx form
-    # (flags 0/1/2/3) where every item is a bare function index.
-    non_func_ref_expr? =
-      Enum.any?(expr_nodes, fn
-        [{:keyword, "ref.func"}, _] -> false
-        _ -> true
-      end)
+    # The expr form (flags 4/5/6/7) is used for inline table elements, for any
+    # non-funcref reference type, and for segments that actually carry expression
+    # elements. A passive/declarative segment writes its elements as expressions
+    # only when it has at least one; an empty passive funcref segment is the legacy
+    # funcidx form. Active segments with the legacy funcref type use the funcidx
+    # form (flags 0/1/2/3) unless they contain a genuine expression element (a
+    # `ref.null`/`global.get`/`item` -- `ref.func N` collapses to a bare index).
+    funcref_type? = legacy_func_reftype?(reftype_node)
 
-    funcref_type? = elem_reftype_is_funcref?(reftype)
+    # The expr form (flags 4/5/6/7) is used for inline table elements and for any
+    # element type other than the legacy abstract function reference `(ref func)` /
+    # bare `func` / omitted reftype. The legacy funcidx form (flags 0/1/2/3) writes
+    # the func-kind byte (0x00) and stores every element as a bare function index.
+    use_expr_form = inline_elem? or not funcref_type?
 
-    use_expr_form =
-      inline_elem? or non_func_ref_expr? or not funcref_type?
-
-    # wat2wasm writes an explicit index when an active segment either has a
-    # non-default table or a non-legacy element type (mirroring ElemSegment::GetFlags).
+    # wat2wasm writes the explicit table-index bit (0x02) when the segment's table
+    # is non-zero. For a non-inline active segment that uses the expr form, the
+    # index is written even when it is zero (wabt pairs 0x04 with 0x02). Inline
+    # table elements never write the index unless their table is non-zero.
     explicit_index? =
       not is_passive and not is_declarative and
-        (table_idx != 0 or explicit_table? or not funcref_type?)
+        (table_idx != 0 or (use_expr_form and not inline_elem?))
 
     # The element type byte is written for passive, declared and explicit-index
     # segments only. Legacy forms write the abstract `func` kind byte (0x00);
@@ -1048,10 +1050,16 @@ defmodule Watusi.Encoder.Sections do
   # Whether the element type collapses to the legacy funcref kind, matching
   # wabt where `(ref func)` (and the bare `funcref`/`anyfunc` keywords) are
   # encoded as the abstract reference type rather than an expr-form valtype.
-  defp elem_reftype_is_funcref?([{:keyword, "ref"}, {:keyword, "func"}]), do: true
-  defp elem_reftype_is_funcref?({:keyword, k}) when k in ["func", "funcref", "anyfunc"], do: true
-  defp elem_reftype_is_funcref?("funcref"), do: true
-  defp elem_reftype_is_funcref?(_), do: false
+  # Whether the element type collapses to the legacy funcidx form. wat2wasm uses
+  # the abstract function reference -- the exact `(ref func)` type, a bare `func`
+  # keyword, or an omitted/implicit reftype (defaulting to funcref) -- for the
+  # legacy form (func-kind byte 0x00, bare function indices). Every other reftype
+  # (including the `funcref`/`anyfunc` keywords and `(ref null func)`) uses the
+  # expr form with an explicit reftype valtype byte.
+  defp legacy_func_reftype?(nil), do: true
+  defp legacy_func_reftype?([{:keyword, "ref"}, {:keyword, "func"}]), do: true
+  defp legacy_func_reftype?({:keyword, "func"}), do: true
+  defp legacy_func_reftype?(_), do: false
 
   # The reftype byte written in the expr form. Funcref-family types normalize to
   # the single-byte funcref (`0x70`); externref-family to `0x6F`; a reference to a
@@ -1164,15 +1172,6 @@ defmodule Watusi.Encoder.Sections do
 
       other ->
         {0, other}
-    end
-  end
-
-  defp resolve_elem_table_explicit?(rest, _ctx) do
-    case rest do
-      [[{:keyword, "table"}, _] | _] -> true
-      [{:keyword, "table"}, _ | _] -> true
-      [{:inline_elem, true}, [{:keyword, "table"}, _] | _] -> true
-      _ -> false
     end
   end
 
@@ -1291,11 +1290,6 @@ defmodule Watusi.Encoder.Sections do
     Enum.flat_map(rest, fn
       [{:keyword, k} | _] = node when is_inline_elem_entry_kind(k) ->
         [node]
-
-      # The text form `func <id|int>` is a function reference element item,
-      # normalized to a `ref.func` expression so it is treated uniformly.
-      [{:keyword, "func"}, target] ->
-        [{:keyword, "ref.func"}, target]
 
       [{:keyword, "item"} | item_rest] ->
         case normalize_item_expr(item_rest) do

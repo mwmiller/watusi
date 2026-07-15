@@ -4,11 +4,9 @@ test/spec_vectors/br_on_non_null/ok/module_0.wat
 test/spec_vectors/br_on_non_null/ok/module_2.wat
 test/spec_vectors/br_on_null/ok/module_0.wat
 test/spec_vectors/br_on_null/ok/module_2.wat
-test/spec_vectors/br_table/ok/module_0.wat
 test/spec_vectors/br/ok/module_0.wat
 test/spec_vectors/bulk/ok/module_10.wat
 test/spec_vectors/call_indirect/ok/module_0.wat
-test/spec_vectors/call_indirect/ok/module_1.wat
 test/spec_vectors/call_indirect64/ok/module_0.wat
 test/spec_vectors/call_ref/ok/module_0.wat
 test/spec_vectors/call_ref/ok/module_2.wat
@@ -19,7 +17,6 @@ test/spec_vectors/elem/ok/module_1.wat
 test/spec_vectors/elem/ok/module_10.wat
 test/spec_vectors/elem/ok/module_24.wat
 test/spec_vectors/elem/ok/module_26.wat
-test/spec_vectors/elem/ok/module_27.wat
 test/spec_vectors/elem/ok/module_28.wat
 test/spec_vectors/elem/ok/module_29.wat
 test/spec_vectors/elem/ok/module_30.wat
@@ -27,9 +24,6 @@ test/spec_vectors/elem/ok/module_31.wat
 test/spec_vectors/elem/ok/module_32.wat
 test/spec_vectors/elem/ok/module_36.wat
 test/spec_vectors/elem/ok/module_38.wat
-test/spec_vectors/elem/ok/module_41.wat
-test/spec_vectors/elem/ok/module_42.wat
-test/spec_vectors/elem/ok/module_43.wat
 test/spec_vectors/elem/ok/module_57.wat
 test/spec_vectors/elem/ok/module_90.wat
 test/spec_vectors/elem/ok/module_91.wat
@@ -56,13 +50,11 @@ test/spec_vectors/nop/ok/module_0.wat
 test/spec_vectors/ref_as_non_null/ok/module_0.wat
 test/spec_vectors/ref_func/ok/module_1.wat
 test/spec_vectors/ref_func/ok/module_3.wat
-test/spec_vectors/return_call_indirect/ok/module_0.wat
 test/spec_vectors/return_call_ref/ok/module_0.wat
 test/spec_vectors/return_call_ref/ok/module_1.wat
 test/spec_vectors/return_call_ref/ok/module_10.wat
 test/spec_vectors/return_call_ref/ok/module_9.wat
 test/spec_vectors/return/ok/module_0.wat
-test/spec_vectors/select/ok/module_0.wat
 test/spec_vectors/simd_const/ok/module_386.wat
 test/spec_vectors/table_grow/ok/module_1.wat
 test/spec_vectors/table_grow/ok/module_4.wat
