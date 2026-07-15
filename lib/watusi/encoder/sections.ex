@@ -1049,9 +1049,9 @@ defmodule Watusi.Encoder.Sections do
 
     [
       0x04,
-      reftype_bytes,
       Enum.map(offset_instrs, &InstrEncoder.encode_instruction(&1, ctx)),
       0x0B,
+      reftype_bytes,
       encoded_exprs
     ]
   end
@@ -1070,9 +1070,9 @@ defmodule Watusi.Encoder.Sections do
     [
       0x06,
       Common.encode_u32(table_idx),
-      reftype_bytes,
       Enum.map(offset_instrs, &InstrEncoder.encode_instruction(&1, ctx)),
       0x0B,
+      reftype_bytes,
       encoded_exprs
     ]
   end

@@ -31,7 +31,6 @@ test/spec_vectors/elem/ok/module_41.wat
 test/spec_vectors/elem/ok/module_42.wat
 test/spec_vectors/elem/ok/module_43.wat
 test/spec_vectors/elem/ok/module_57.wat
-test/spec_vectors/elem/ok/module_88.wat
 test/spec_vectors/elem/ok/module_90.wat
 test/spec_vectors/elem/ok/module_91.wat
 test/spec_vectors/elem/ok/module_92.wat
@@ -57,7 +56,6 @@ test/spec_vectors/nop/ok/module_0.wat
 test/spec_vectors/ref_as_non_null/ok/module_0.wat
 test/spec_vectors/ref_func/ok/module_1.wat
 test/spec_vectors/ref_func/ok/module_3.wat
-test/spec_vectors/ref_is_null/ok/module_0.wat
 test/spec_vectors/return_call_indirect/ok/module_0.wat
 test/spec_vectors/return_call_ref/ok/module_0.wat
 test/spec_vectors/return_call_ref/ok/module_1.wat
