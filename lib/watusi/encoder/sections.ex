@@ -163,20 +163,25 @@ defmodule Watusi.Encoder.Sections do
     offset_const = if is_64, do: "i64.const", else: "i32.const"
 
     reftype_part = if reftype_node, do: [reftype_node], else: []
+    offset_node = [{:keyword, "offset"}, [{:keyword, offset_const}, {:int, 0}]]
 
+    # Tag inline table elements so the encoder knows they are always active
+    # initializers for their defining table (and must use the expr form).
     case table_id do
       nil ->
         [
           {:keyword, "elem"},
-          [{:keyword, "offset"}, [{:keyword, offset_const}, {:int, 0}]]
+          {:inline_elem, true},
+          offset_node
           | funcs ++ reftype_part
         ]
 
       id ->
         [
           {:keyword, "elem"},
+          {:inline_elem, true},
           [{:keyword, "table"}, id],
-          [{:keyword, "offset"}, [{:keyword, offset_const}, {:int, 0}]]
+          offset_node
           | funcs ++ reftype_part
         ]
     end
@@ -926,7 +931,10 @@ defmodule Watusi.Encoder.Sections do
         other -> other
       end
 
+    inline_elem? = Enum.any?(rest, &match?({:inline_elem, true}, &1))
+
     {table_idx, rest} = resolve_elem_table_idx(rest, ctx)
+    explicit_table? = resolve_elem_table_explicit?(rest, ctx)
 
     # 3. Extract offset if present. It might be explicit '(offset ...)' or a raw instruction.
     offset_node =
@@ -936,8 +944,13 @@ defmodule Watusi.Encoder.Sections do
         _ -> false
       end)
 
-    is_passive = is_nil(offset_node)
-    is_declarative = Enum.any?(rest, &match?({:keyword, "declare"}, &1))
+    # Inline table elements are always active initializers for the table they
+    # are attached to, even though the parser does not wrap them in an offset.
+    is_passive =
+      is_nil(offset_node) and not inline_elem?
+
+    is_declarative =
+      Enum.any?(rest, &match?({:keyword, "declare"}, &1)) and not inline_elem?
 
     reftype =
       Enum.find(rest, fn
@@ -946,30 +959,61 @@ defmodule Watusi.Encoder.Sections do
         _ -> false
       end) || "funcref"
 
-    reftype_bytes = encode_valtype(Instructions.valtype(reftype), ctx)
-
     expr_nodes =
       rest
       |> extract_elem_expr_nodes()
       |> Enum.reject(&(&1 == offset_node))
 
-    {bare_indices, indices, has_expr_payload} =
+    {bare_indices, indices, _has_expr_payload} =
       resolve_elem_payload(rest, offset_node, expr_nodes, reftype, ctx)
 
-    reftype_str = reftype_to_string(reftype)
-    needs_explicit_reftype = reftype_str not in ["funcref", "func", "anyfunc"]
+    # A segment uses the expr form (flags 4/5/6/7) when it carries any
+    # expression-style element (ref.func / ref.null / global.get / item), when the
+    # element type is a reference type other than the legacy funcref, or when it is
+    # an inline table element. Otherwise wat2wasm uses the legacy funcidx form
+    # (flags 0/1/2/3) where every item is a bare function index.
+    non_func_ref_expr? =
+      Enum.any?(expr_nodes, fn
+        [{:keyword, "ref.func"}, _] -> false
+        _ -> true
+      end)
 
-    # Reference-type element segments (any reftype other than funcref/func/anyfunc)
-    # encode their elements as reference expressions; bare function references are
-    # wrapped in ref.func expressions.
-    use_expr_form = needs_explicit_reftype or has_expr_payload
+    funcref_type? = elem_reftype_is_funcref?(reftype)
 
+    use_expr_form =
+      inline_elem? or non_func_ref_expr? or not funcref_type?
+
+    # wat2wasm writes an explicit index when an active segment either has a
+    # non-default table or a non-legacy element type (mirroring ElemSegment::GetFlags).
+    explicit_index? =
+      not is_passive and not is_declarative and
+        (table_idx != 0 or explicit_table? or not funcref_type?)
+
+    # The element type byte is written for passive, declared and explicit-index
+    # segments only. Legacy forms write the abstract `func` kind byte (0x00);
+    # expr forms write the actual reftype.
+    write_type? = is_passive or is_declarative or explicit_index?
+
+    type_byte =
+      if write_type? do
+        if use_expr_form do
+          encode_elem_reftype(reftype, ctx)
+        else
+          [0x00]
+        end
+      else
+        []
+      end
+
+    # In the expr form, bare function indices are wrapped as `ref.func` expressions.
+    # In the legacy funcidx form, every item -- including a source `ref.func N` --
+    # is stored as a bare function index (no opcode).
     elem_expr_nodes =
       if use_expr_form do
         expr_nodes ++
           Enum.map(bare_indices, fn idx -> [{:keyword, "ref.func"}, {:int, idx}] end)
       else
-        expr_nodes
+        []
       end
 
     encoded_exprs =
@@ -982,68 +1026,68 @@ defmodule Watusi.Encoder.Sections do
         [expr_instrs, 0x0B]
       end)
 
-    encode_elem_segment(
-      {is_declarative, is_passive, use_expr_form, table_idx, needs_explicit_reftype},
-      reftype_bytes,
-      encoded_exprs,
-      indices,
-      offset_node,
-      ctx
-    )
+    flags =
+      elem_flags(is_passive, is_declarative, explicit_index?, use_expr_form)
+
+    encode_elem_segment(flags, type_byte, encoded_exprs, indices, table_idx, offset_node, ctx)
   end
 
-  defp encode_elem_segment(
-         {true, _, true, _, _},
-         reftype_bytes,
-         encoded_exprs,
-         _indices,
-         _offset_node,
-         _ctx
-       ) do
-    [0x07, reftype_bytes, encoded_exprs]
+    # Replicates wabt's ElemSegment::GetFlags: passive=1, declared=3,
+    # explicit-index=2 (active only), use-elem-exprs=4.
+    defp elem_flags(_is_passive, true, _explicit, use_expr),
+      do: (if(use_expr, do: 0x07, else: 0x03))
+
+    defp elem_flags(true, false, _explicit, use_expr),
+      do: (if(use_expr, do: 0x05, else: 0x01))
+
+  defp elem_flags(false, false, explicit, use_expr) do
+    base = if(explicit, do: 0x02, else: 0x00)
+    base + if(use_expr, do: 0x04, else: 0x00)
   end
 
-  defp encode_elem_segment(
-         {true, _, false, _, _},
-         _reftype_bytes,
-         _encoded_exprs,
-         indices,
-         _offset_node,
-         _ctx
-       ) do
-    [0x03, Common.encode_vector(indices, &Common.encode_u32/1)]
+  # Whether the element type collapses to the legacy funcref kind, matching
+  # wabt where `(ref func)` (and the bare `funcref`/`anyfunc` keywords) are
+  # encoded as the abstract reference type rather than an expr-form valtype.
+  defp elem_reftype_is_funcref?([{:keyword, "ref"}, {:keyword, "func"}]), do: true
+  defp elem_reftype_is_funcref?({:keyword, k}) when k in ["func", "funcref", "anyfunc"], do: true
+  defp elem_reftype_is_funcref?("funcref"), do: true
+  defp elem_reftype_is_funcref?(_), do: false
+
+  # The reftype byte written in the expr form. Funcref-family types normalize to
+  # the single-byte funcref (`0x70`); externref-family to `0x6F`; a reference to a
+  # defined type is encoded as a heap type with its type index.
+  defp encode_elem_reftype([{:keyword, "ref"}, {:keyword, "func"}], _ctx), do: [0x70]
+  defp encode_elem_reftype([{:keyword, "ref"}, {:keyword, "null"}, {:keyword, "func"}], _ctx), do: [0x70]
+  defp encode_elem_reftype([{:keyword, "ref"}, {:keyword, "null"}, {:keyword, "extern"}], _ctx), do: [0x6F]
+  defp encode_elem_reftype([{:keyword, "ref"}, {:keyword, "extern"}], _ctx), do: [0x6F]
+  defp encode_elem_reftype({:keyword, k}, _ctx) when k in ["funcref", "anyfunc", "func"], do: [0x70]
+  defp encode_elem_reftype({:keyword, "externref"}, _ctx), do: [0x6F]
+  defp encode_elem_reftype(reftype, ctx), do: encode_valtype(Instructions.valtype(reftype), ctx)
+
+  defp encode_elem_segment(flags, type_byte, encoded_exprs, _indices, _table_idx, _offset_node, _ctx)
+       when flags in [0x05, 0x07] do
+    [flags, type_byte, encoded_exprs]
   end
 
-  defp encode_elem_segment(
-         {false, true, true, _, _},
-         reftype_bytes,
-         encoded_exprs,
-         _indices,
-         _offset_node,
-         _ctx
-       ) do
-    [0x05, reftype_bytes, encoded_exprs]
+  defp encode_elem_segment(flags, type_byte, _encoded_exprs, indices, _table_idx, _offset_node, _ctx)
+       when flags in [0x01, 0x03] do
+    [flags, type_byte, Common.encode_vector(indices, &Common.encode_u32/1)]
   end
 
-  defp encode_elem_segment(
-         {false, true, false, _, _},
-         _reftype_bytes,
-         _encoded_exprs,
-         indices,
-         _offset_node,
-         _ctx
-       ) do
-    [0x01, Common.encode_vector(indices, &Common.encode_u32/1)]
+  defp encode_elem_segment(0x00, _type_byte, _encoded_exprs, indices, _table_idx, offset_node, ctx) do
+    offset_expr = extract_offset_expr(offset_node)
+    offset_instrs = InstrEncoder.collect_instructions(offset_expr, ctx)
+
+    [
+      0x00,
+      Enum.map(offset_instrs, &InstrEncoder.encode_instruction(&1, ctx)),
+      0x0B,
+      Common.encode_vector(indices, &Common.encode_u32/1)
+    ]
   end
 
-  defp encode_elem_segment(
-         {false, false, true, 0, false},
-         reftype_bytes,
-         encoded_exprs,
-         _indices,
-         offset_node,
-         ctx
-       ) do
+  defp encode_elem_segment(0x04, type_byte, encoded_exprs, _indices, _table_idx, offset_node, ctx) do
+    # Active table-0 expr form (flags 4): offset + reftype byte + expr list, no table index.
     offset_expr = extract_offset_expr(offset_node)
     offset_instrs = InstrEncoder.collect_instructions(offset_expr, ctx)
 
@@ -1051,19 +1095,28 @@ defmodule Watusi.Encoder.Sections do
       0x04,
       Enum.map(offset_instrs, &InstrEncoder.encode_instruction(&1, ctx)),
       0x0B,
-      reftype_bytes,
+      type_byte,
       encoded_exprs
     ]
   end
 
-  defp encode_elem_segment(
-         {false, false, true, table_idx, _},
-         reftype_bytes,
-         encoded_exprs,
-         _indices,
-         offset_node,
-         ctx
-       ) do
+  defp encode_elem_segment(0x02, type_byte, _encoded_exprs, indices, table_idx, offset_node, ctx) do
+    # Active explicit-table legacy form (flag 2): table index + reftype byte + funcidx list.
+    offset_expr = extract_offset_expr(offset_node)
+    offset_instrs = InstrEncoder.collect_instructions(offset_expr, ctx)
+
+    [
+      0x02,
+      Common.encode_u32(table_idx),
+      Enum.map(offset_instrs, &InstrEncoder.encode_instruction(&1, ctx)),
+      0x0B,
+      type_byte,
+      Common.encode_vector(indices, &Common.encode_u32/1)
+    ]
+  end
+
+  defp encode_elem_segment(0x06, type_byte, encoded_exprs, _indices, table_idx, offset_node, ctx) do
+    # Active explicit-table expr form (flag 6): table index + reftype byte + expr list.
     offset_expr = extract_offset_expr(offset_node)
     offset_instrs = InstrEncoder.collect_instructions(offset_expr, ctx)
 
@@ -1072,41 +1125,9 @@ defmodule Watusi.Encoder.Sections do
       Common.encode_u32(table_idx),
       Enum.map(offset_instrs, &InstrEncoder.encode_instruction(&1, ctx)),
       0x0B,
-      reftype_bytes,
+      type_byte,
       encoded_exprs
     ]
-  end
-
-  defp encode_elem_segment(
-         {false, false, false, table_idx, _},
-         _reftype_bytes,
-         _encoded_exprs,
-         indices,
-         offset_node,
-         ctx
-       ) do
-    offset_expr = extract_offset_expr(offset_node)
-    offset_instrs = InstrEncoder.collect_instructions(offset_expr, ctx)
-
-    case table_idx do
-      0 ->
-        [
-          0x00,
-          Enum.map(offset_instrs, &InstrEncoder.encode_instruction(&1, ctx)),
-          0x0B,
-          Common.encode_vector(indices, &Common.encode_u32/1)
-        ]
-
-      _ ->
-        [
-          0x02,
-          Common.encode_u32(table_idx),
-          Enum.map(offset_instrs, &InstrEncoder.encode_instruction(&1, ctx)),
-          0x0B,
-          0x00,
-          Common.encode_vector(indices, &Common.encode_u32/1)
-        ]
-    end
   end
 
   defp extract_offset_expr(offset_node) do
@@ -1130,6 +1151,14 @@ defmodule Watusi.Encoder.Sections do
       [{:keyword, "table"}, {:int, i} | tail] ->
         {i, tail}
 
+      # Inline table elements are tagged with a `{:inline_elem, true}` marker,
+      # so the `[table, id]` pair sits one position deeper in the list.
+      [{:inline_elem, true}, [{:keyword, "table"}, {:id, id}] | tail] ->
+        {InstrEncoder.resolve_index(id, ctx.tables, ctx.imports, "table"), tail}
+
+      [{:inline_elem, true}, [{:keyword, "table"}, {:int, i}] | tail] ->
+        {i, tail}
+
       [{:int, i} | tail] ->
         {i, tail}
 
@@ -1138,15 +1167,16 @@ defmodule Watusi.Encoder.Sections do
     end
   end
 
-  defp reftype_to_string({:keyword, k}), do: k
-  defp reftype_to_string(k) when is_binary(k), do: k
-  defp reftype_to_string([{:keyword, "ref"}, {:keyword, "null"}, {:id, _}]), do: "ref null idx"
-  defp reftype_to_string([{:keyword, "ref"}, {:keyword, "null"}, {:keyword, k}]), do: k
-  defp reftype_to_string([{:keyword, "ref"}, {:keyword, k}]), do: k
-  defp reftype_to_string([{:keyword, "ref"}, {:id, _}]), do: "ref idx"
-  defp reftype_to_string(_), do: "funcref"
+  defp resolve_elem_table_explicit?(rest, _ctx) do
+    case rest do
+      [[{:keyword, "table"}, _] | _] -> true
+      [{:keyword, "table"}, _ | _] -> true
+      [{:inline_elem, true}, [{:keyword, "table"}, _] | _] -> true
+      _ -> false
+    end
+  end
 
-  defp resolve_elem_payload(rest, offset_node, expr_nodes, reftype, ctx) do
+  defp resolve_elem_payload(rest, offset_node, expr_nodes, _reftype, ctx) do
     expr_ref_func_indices =
       Enum.flat_map(expr_nodes, fn
         [{:keyword, "ref.func"}, {:id, id}] ->
@@ -1159,22 +1189,31 @@ defmodule Watusi.Encoder.Sections do
           []
       end)
 
-    reftype_str = reftype_to_string(reftype)
-
-    has_expr_payload = expr_nodes != []
-
     bare_indices =
       rest
       |> Enum.reject(&(&1 == offset_node))
-      |> Enum.flat_map(fn
-        {:id, _} = id -> [InstrEncoder.resolve_index(id, ctx.funcs, ctx.imports, "func")]
-        {:int, i} -> [i]
-        _ -> []
-      end)
+      |> collect_elem_func_indices(ctx)
 
     indices = bare_indices ++ expr_ref_func_indices
 
-    {bare_indices, indices, has_expr_payload}
+    {bare_indices, indices, expr_nodes != []}
+  end
+
+  # Walks the flat element item list collecting bare function references. A
+  # top-level index/id is a function reference; the text form `func <id|int>...`
+  # marks the following id/int tokens (until the next keyword or paren) as
+  # function references.
+  defp collect_elem_func_indices(tokens, ctx) do
+    tokens
+    |> Enum.reduce({[], false}, fn
+      {:keyword, "func"}, {acc, _} -> {acc, true}
+      {:id, _} = id, {acc, true} -> {acc ++ [InstrEncoder.resolve_index(id, ctx.funcs, ctx.imports, "func")], true}
+      {:int, i}, {acc, true} -> {acc ++ [i], true}
+      {:id, _} = id, {acc, false} -> {acc ++ [InstrEncoder.resolve_index(id, ctx.funcs, ctx.imports, "func")], false}
+      {:int, i}, {acc, false} -> {acc ++ [i], false}
+      _, {acc, _} -> {acc, false}
+    end)
+    |> elem(0)
   end
 
   def encode_data([{:keyword, "data"} | rest], ctx) do
@@ -1252,6 +1291,11 @@ defmodule Watusi.Encoder.Sections do
     Enum.flat_map(rest, fn
       [{:keyword, k} | _] = node when is_inline_elem_entry_kind(k) ->
         [node]
+
+      # The text form `func <id|int>` is a function reference element item,
+      # normalized to a `ref.func` expression so it is treated uniformly.
+      [{:keyword, "func"}, target] ->
+        [{:keyword, "ref.func"}, target]
 
       [{:keyword, "item"} | item_rest] ->
         case normalize_item_expr(item_rest) do
