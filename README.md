@@ -8,9 +8,9 @@ Watusi provides a pure-Elixir pipeline for transforming human-readable WebAssemb
 
 - **Native Elixir**: No external dependencies or tools required - pure Elixir implementation.
 - **High Performance**: Optimized lexer and encoder with compile-time code generation for maximum speed.
-- **Modern Standards**: Full support for Bulk Memory, SIMD, Threads, Exception Handling, and GC proposals.
+- **Modern Standards**: Core 1.0 plus Bulk Memory, Fixed-width SIMD, Threads/Atomics, Sign-extension, Non-trapping float-to-int, and Exception Handling proposals. Reference-Types and Function-References are partially supported.
 - **Developer Friendly**: Optional debug names and detailed identifier resolution.
-- **Spec Compliant**: Rigorously tested against 5,000+ official WebAssembly test vectors.
+- **Spec Compliant**: Tested against the official WABT spec vectors (5,000+) with bit-for-bit parity to `wat2wasm`.
 
 ## Performance
 
@@ -27,7 +27,10 @@ Watusi adheres to the following standards:
 - WebAssembly Sign-extension Operators.
 - WebAssembly Nontrapping Float-to-int Conversions.
 - WebAssembly Exception Handling Proposal.
+- WebAssembly Reference-Types and Function-References (partial).
 - IEEE 754-2019 for floating-point representation.
+
+> The Garbage Collection proposal is not yet validated by the suite (see `test/spec_vectors/README.md`).
 
 ## Installation
 
@@ -86,9 +89,9 @@ wasm_with_names = Watusi.to_wasm(wat, debug_names: true)
 
 ## Testing
 
-Watusi is rigorously tested against the [WebAssembly Binary Toolkit (WABT)](https://github.com/WebAssembly/wabt). Our test suite verifies bit-for-bit parity with `wat2wasm` and validates all generated output with `wasm-validate`.
+Watusi is tested against the [WebAssembly Binary Toolkit (WABT)](https://github.com/WebAssembly/wabt). The test suite compiles each WABT `.wat` vector with `wat2wasm` and verifies bit-for-bit parity with Watusi's output, then validates generated binaries with `wasm-validate`.
 
-Over 5,000 spec-compliant test vectors are included, covering core instructions and advanced extensions.
+Over 5,000 official spec vectors are included, covering core instructions and advanced extensions. A small subset (currently 75) that exercises features not yet fully supported—primarily Reference-Types and Function-References—is tagged `:known_failure` and excluded from the default run. Run them explicitly with `mix test --include known_failure`; see `test/spec_vectors/README.md` for details.
 
 ## License
 
