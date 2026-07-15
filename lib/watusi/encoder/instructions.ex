@@ -7,7 +7,7 @@ defmodule Watusi.Encoder.Instructions do
   import Bitwise
 
   @control_flow_ops ["block", "loop", "if", "try", "try_table"]
-  @branch_ops ["br", "br_if", "br_table"]
+  @branch_ops ["br", "br_if", "br_table", "br_on_null", "br_on_non_null"]
   @call_ops ["call", "call_indirect", "return_call", "return_call_indirect"]
   @global_ops ["global.get", "global.set"]
   @tag_ops ["throw", "rethrow", "catch", "catch_ref"]
@@ -513,7 +513,7 @@ defmodule Watusi.Encoder.Instructions do
   @memory_mgmt_ops ["memory.grow", "memory.size"]
   defguardp is_memory_mgmt_op(name) when name in @memory_mgmt_ops
 
-  @dynamic_target_ops ["br", "br_if", "call", "return_call", "catch", "rethrow"]
+  @dynamic_target_ops ["br", "br_if", "br_on_null", "br_on_non_null", "call", "return_call", "catch", "rethrow"]
   defguardp is_dynamic_target_op(name) when name in @dynamic_target_ops
 
   @signature_definition_kinds ["param", "result", "type"]
@@ -549,15 +549,17 @@ defmodule Watusi.Encoder.Instructions do
   defp encode_select([]), do: [0x1B]
 
   defp encode_select(args) do
-    # Extract result types for typed select
     types =
       Enum.flat_map(args, fn
         [{:keyword, "result"} | ts] -> ts
         _ -> []
       end)
-      |> Enum.map(fn {:keyword, t} -> Instructions.valtype(t) end)
+      |> Enum.map(fn
+        {:keyword, t} -> Instructions.valtype(t)
+        t when is_list(t) -> Instructions.valtype(t)
+      end)
 
-    [0x1C, Common.encode_vector(types, & &1)]
+    [0x1C, Common.encode_vector(types, &Sections.encode_valtype(&1, %{}))]
   end
 
   defp encode_standard_instruction(name, args, ctx, labels) do
@@ -803,7 +805,7 @@ defmodule Watusi.Encoder.Instructions do
   defp encode_blocktype(params, results, ctx, force_param_sig?) do
     case {params, results} do
       {[], []} -> [0x40]
-      {[], [type]} -> [Instructions.valtype(type)]
+      {[], [type]} -> encode_valtype_result(type, ctx)
       {[_ | _], _} -> handle_param_blocktype(params, results, ctx, force_param_sig?)
       sig -> encode_blocktype_sig(sig, ctx)
     end
@@ -814,10 +816,15 @@ defmodule Watusi.Encoder.Instructions do
       {[], true} -> encode_blocktype_sig({params, []}, ctx)
       {[], false} -> [0x40]
       {[type], true} -> encode_blocktype_sig({params, [type]}, ctx)
-      {[type], false} -> [Instructions.valtype(type)]
+      {[type], false} -> encode_valtype_result(type, ctx)
       {_, _} -> encode_blocktype_sig({params, results}, ctx)
     end
   end
+
+  defp encode_valtype_result({:keyword, t}, _ctx), do: [Instructions.valtype(t)]
+  defp encode_valtype_result(t, _ctx) when is_binary(t), do: [Instructions.valtype(t)]
+  defp encode_valtype_result(t, ctx) when is_list(t), do: Sections.encode_valtype(Instructions.valtype(t), ctx)
+  defp encode_valtype_result(t, _ctx) when is_integer(t), do: [t]
 
   defp encode_blocktype_sig(sig, ctx) do
     idx =
@@ -1383,6 +1390,7 @@ defmodule Watusi.Encoder.Instructions do
   defp encode_arg("ref.null", {:keyword, "extern"}, _, _), do: Instructions.valtype("externref")
   defp encode_arg("ref.null", {:keyword, "func"}, _, _), do: Instructions.valtype("funcref")
   defp encode_arg("ref.null", {:keyword, type}, _, _), do: Instructions.valtype(type)
+  defp encode_arg("ref.null", {:id, id}, ctx, _), do: LEB128.encode_signed(resolve_type_id(id, ctx))
 
   defp encode_arg(name, {:id, id}, _, labels) when is_branch(name),
     do: resolve_label(id, labels) |> Common.encode_u32()
@@ -1436,6 +1444,10 @@ defmodule Watusi.Encoder.Instructions do
 
   defp encode_arg(name, {:id, id}, ctx, _) when is_global_op(name),
     do: Common.encode_u32(resolve_index(id, ctx.globals, ctx.imports, "global"))
+
+  defp encode_arg(name, {:id, id}, ctx, _)
+       when name in ["call_ref", "return_call_ref"],
+       do: Common.encode_u32(resolve_type_id(id, ctx))
 
   defp encode_arg(_name, {:binary, bin}, _, _), do: bin
   defp encode_arg(_name, {:int, val}, _, _), do: Common.encode_u32(val)
@@ -1739,6 +1751,8 @@ defmodule Watusi.Encoder.Instructions do
   @stop_keywords ["end", "else", "catch", "catch_all", "delegate"]
   defguardp is_stop_keyword(name) when name in @stop_keywords
 
+  @heaptype_keywords ["func", "extern", "any", "eq", "i31", "struct", "array", "none", "noextern", "nofunc", "noany", "noeq", "noi31"]
+
   def collect_args([{:keyword, name} | _] = rest, acc) when is_stop_keyword(name),
     do: {Enum.reverse(acc), rest}
 
@@ -1758,6 +1772,9 @@ defmodule Watusi.Encoder.Instructions do
     do: collect_args(rest, [arg | acc])
 
   def collect_args([[{:keyword, name} | _] = arg | rest], acc) when is_collect_arg_keyword(name),
+    do: collect_args(rest, [arg | acc])
+
+  def collect_args([{:keyword, name} = arg | rest], acc) when name in @heaptype_keywords,
     do: collect_args(rest, [arg | acc])
 
   def collect_args(rest, acc), do: {Enum.reverse(acc), rest}
@@ -1786,7 +1803,9 @@ defmodule Watusi.Encoder.Instructions do
                 {i, Map.put(a, id, i)}
 
               {:keyword, _}, {i, a} ->
-                # Type keyword - increment index
+                {i + 1, a}
+
+              t, {i, a} when is_list(t) ->
                 {i + 1, a}
 
               _, state ->
@@ -1858,11 +1877,7 @@ defmodule Watusi.Encoder.Instructions do
 
     blocktype_list = encode_control_flow_immediates(args, ctx)
 
-    blocktype =
-      case blocktype_list do
-        [bt] -> bt
-        list -> hd(list)
-      end
+      blocktype = blocktype_list
 
     # Separate catch handlers from body instructions
     {catches, body_and_other} =
@@ -1901,11 +1916,7 @@ defmodule Watusi.Encoder.Instructions do
 
     blocktype_list = encode_control_flow_immediates(args, ctx)
 
-    blocktype =
-      case blocktype_list do
-        [bt] -> bt
-        list -> hd(list)
-      end
+      blocktype = blocktype_list
 
     {catches, _} =
       Enum.split_with(args, fn
@@ -1935,11 +1946,7 @@ defmodule Watusi.Encoder.Instructions do
 
     blocktype_list = encode_control_flow_immediates(args, ctx)
 
-    blocktype =
-      case blocktype_list do
-        [bt] -> bt
-        list -> hd(list)
-      end
+      blocktype = blocktype_list
 
     inner_rest =
       Enum.drop_while(args, fn
@@ -1969,11 +1976,7 @@ defmodule Watusi.Encoder.Instructions do
 
     blocktype_list = encode_control_flow_immediates(args, ctx)
 
-    blocktype =
-      case blocktype_list do
-        [bt] -> bt
-        list -> hd(list)
-      end
+      blocktype = blocktype_list
 
     inner_rest =
       Enum.drop_while(args, fn
@@ -2015,11 +2018,7 @@ defmodule Watusi.Encoder.Instructions do
 
     blocktype_list = encode_control_flow_immediates(args, ctx)
 
-    blocktype =
-      case blocktype_list do
-        [bt] -> bt
-        list -> hd(list)
-      end
+      blocktype = blocktype_list
 
     do_collect_instructions(
       remaining,

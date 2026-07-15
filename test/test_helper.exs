@@ -30,8 +30,8 @@ defmodule Watusi.TestHelper do
         :ok
 
       false ->
-        # Only validate and fail if they differ
         validate_wasm(watusi_wasm)
+        validate_wasm(expected_wasm)
         assert watusi_wasm == expected_wasm
     end
   end

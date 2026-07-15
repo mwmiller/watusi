@@ -104,13 +104,13 @@ defmodule Watusi.Lexer do
 
   defp read_identifier(input, _acc) do
     len = count_id_chars(input, 0)
-    <<id::binary-size(len), rest::binary>> = input
+    <<id::binary-size(^len), rest::binary>> = input
     {id, rest}
   end
 
   defp read_atom(first, rest) do
     len = count_id_chars(rest, 0)
-    <<atom_tail::binary-size(len), remaining::binary>> = rest
+    <<atom_tail::binary-size(^len), remaining::binary>> = rest
     {<<first::binary, atom_tail::binary>>, remaining}
   end
 

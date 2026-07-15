@@ -106,7 +106,7 @@ defmodule Watusi.Patcher do
 
   defp parse_section_list(<<id::8, rest::binary>>, acc) do
     {size, rest} = decode_u32(rest)
-    <<payload::binary-size(size), rest::binary>> = rest
+    <<payload::binary-size(^size), rest::binary>> = rest
     parse_section_list(rest, [{id, payload} | acc])
   end
 
@@ -170,7 +170,7 @@ defmodule Watusi.Patcher do
       end
 
     {data_size, rest} = decode_u32(rest)
-    <<data::binary-size(data_size), rest::binary>> = rest
+    <<data::binary-size(^data_size), rest::binary>> = rest
 
     segment = %{flags: flags, offset: offset, data: data}
     parse_data_segments(rest, count - 1, [segment | acc])
@@ -304,9 +304,6 @@ defmodule Watusi.Patcher do
 
             val when is_integer(val) ->
               <<0x42>> <> encode_i64(val) <> <<0x0B>>
-
-            opcode when is_integer(opcode) ->
-              <<opcode, 0x0B>>
           end
 
         type <> init_expr

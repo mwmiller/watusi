@@ -196,6 +196,11 @@ defmodule Watusi.Instructions do
     "ref.null" => 0xD0,
     "ref.is_null" => 0xD1,
     "ref.func" => 0xD2,
+    "ref.as_non_null" => 0xD4,
+    "call_ref" => 0x14,
+    "return_call_ref" => 0x15,
+    "br_on_null" => 0xD5,
+    "br_on_non_null" => 0xD6,
     # Non-trapping float-to-int (0xFC prefix)
     "i32.trunc_sat_f32_s" => {:fc, 0x00},
     "i32.trunc_sat_f32_u" => {:fc, 0x01},

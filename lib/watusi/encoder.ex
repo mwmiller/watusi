@@ -93,10 +93,7 @@ defmodule Watusi.Encoder do
       ),
       Common.encode_section(
         2,
-        Common.encode_vector(
-          sections.imports,
-          &Sections.encode_import(&1, signatures, sections.types)
-        )
+        Sections.encode_import_section(sections.imports, signatures, sections.types)
       ),
       Common.encode_section(
         3,

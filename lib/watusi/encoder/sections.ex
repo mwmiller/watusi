@@ -41,7 +41,8 @@ defmodule Watusi.Encoder.Sections do
   defguardp is_offset_op(name) when name in @offset_ops
 
   # Opcodes that can be used as reference types in table/elem declarations
-  @reftypes ["funcref", "anyfunc", "externref", "func"]
+  @reftypes ["funcref", "anyfunc", "externref", "func", "anyref", "eqref",
+             "structref", "arrayref", "i31ref", "nullref", "nullexternref", "nullfuncref"]
 
   def group_sections(body) do
     initial = %{
@@ -142,7 +143,14 @@ defmodule Watusi.Encoder.Sections do
             _ -> nil
           end
 
-        elem_item = build_inline_elem_item(table_id, is_table_64, funcs)
+        reftype_node =
+          Enum.find(rest, fn
+            {:keyword, k} when k in @reftypes -> true
+            [{:keyword, "ref"} | _] -> true
+            _ -> false
+          end)
+
+        elem_item = build_inline_elem_item(table_id, is_table_64, funcs, reftype_node)
 
         base_table = Enum.reject(rest, &match?([{:keyword, "elem"} | _], &1))
         cleaned_table = build_table_item_from_inline(base_table, funcs, rest)
@@ -151,21 +159,25 @@ defmodule Watusi.Encoder.Sections do
     end
   end
 
-  defp build_inline_elem_item(table_id, is_64, funcs) do
+  defp build_inline_elem_item(table_id, is_64, funcs, reftype_node) do
     offset_const = if is_64, do: "i64.const", else: "i32.const"
+
+    reftype_part = if reftype_node, do: [reftype_node], else: []
 
     case table_id do
       nil ->
         [
           {:keyword, "elem"},
-          [{:keyword, "offset"}, [{:keyword, offset_const}, {:int, 0}]] | funcs
+          [{:keyword, "offset"}, [{:keyword, offset_const}, {:int, 0}]]
+          | funcs ++ reftype_part
         ]
 
       id ->
         [
           {:keyword, "elem"},
           [{:keyword, "table"}, id],
-          [{:keyword, "offset"}, [{:keyword, offset_const}, {:int, 0}]] | funcs
+          [{:keyword, "offset"}, [{:keyword, offset_const}, {:int, 0}]]
+          | funcs ++ reftype_part
         ]
     end
   end
@@ -421,6 +433,7 @@ defmodule Watusi.Encoder.Sections do
           Enum.reduce(ts, [], fn
             {:id, _}, acc -> acc
             {:keyword, t}, acc -> acc ++ [t]
+            t, acc when is_list(t) -> acc ++ [t]
             _, acc -> acc
           end)
 
@@ -430,6 +443,7 @@ defmodule Watusi.Encoder.Sections do
         results =
           Enum.reduce(ts, [], fn
             {:keyword, t}, acc -> acc ++ [t]
+            t, acc when is_list(t) -> acc ++ [t]
             _, acc -> acc
           end)
 
@@ -527,17 +541,35 @@ defmodule Watusi.Encoder.Sections do
   defp extract_field_type([{:keyword, type} | _]), do: {type, 0x00}
   defp extract_field_type({:keyword, type}), do: {type, 0x00}
 
-  defp encode_valtype({:ref, node}, ctx), do: resolve_heap_type(node, ctx)
-  defp encode_valtype(type, _ctx) when is_integer(type), do: [type]
-  defp encode_valtype(type, _ctx) when is_binary(type), do: [Instructions.valtype(type)]
+  def encode_valtype({:ref, node}, ctx), do: resolve_heap_type(node, ctx)
+  def encode_valtype(type, _ctx) when is_integer(type), do: [type]
+  def encode_valtype(type, _ctx) when is_binary(type), do: [Instructions.valtype(type)]
 
   defp resolve_heap_type([{:keyword, "ref"}, arg], ctx) do
-    [0x6B, resolve_heap_type_arg(arg, ctx, false)]
+    [0x64, resolve_heap_type_arg(arg, ctx, false)]
   end
 
   defp resolve_heap_type([{:keyword, "ref"}, {:keyword, "null"}, arg], ctx) do
-    [0x6C, resolve_heap_type_arg(arg, ctx, true)]
+    # Nullable ref with abstract heap types use the direct valtype encoding
+    case arg do
+      {:keyword, k} ->
+        [Instructions.valtype(abstract_heap_valtype(k))]
+
+      _ ->
+        [0x63, resolve_heap_type_arg(arg, ctx, true)]
+    end
   end
+
+  defp abstract_heap_valtype("func"), do: "funcref"
+  defp abstract_heap_valtype("extern"), do: "externref"
+  defp abstract_heap_valtype("any"), do: "anyref"
+  defp abstract_heap_valtype("eq"), do: "eqref"
+  defp abstract_heap_valtype("struct"), do: "structref"
+  defp abstract_heap_valtype("array"), do: "arrayref"
+  defp abstract_heap_valtype("i31"), do: "i31ref"
+  defp abstract_heap_valtype("none"), do: "nullref"
+  defp abstract_heap_valtype("nofunc"), do: "nullfuncref"
+  defp abstract_heap_valtype("noextern"), do: "nullexternref"
 
   defp resolve_heap_type_arg(arg, ctx, nullable) do
     case arg do
@@ -593,6 +625,39 @@ defmodule Watusi.Encoder.Sections do
     LEB128.encode_signed(val)
   end
 
+  def encode_import_section([], _signatures, _types), do: []
+
+  def encode_import_section(imports, signatures, types) do
+    ctx = %{signatures: signatures, types: types}
+
+    groups =
+      Enum.chunk_by(imports, fn item ->
+        {mod, _, _, _} = normalize_import(item)
+        mod
+      end)
+
+    [
+      Common.encode_u32(length(imports))
+      | Enum.flat_map(groups, &encode_import_group(&1, signatures, types, ctx))
+    ]
+  end
+
+  defp encode_import_group([item], signatures, types, ctx) do
+    encode_import(item, signatures, types, ctx)
+  end
+
+  defp encode_import_group(group, signatures, types, ctx) do
+    {mod, _, _, _} = normalize_import(hd(group))
+
+    items =
+      Enum.flat_map(group, fn item ->
+        {_mod, name, kind, rest} = normalize_import(item)
+        [Common.encode_string(name) | do_encode_import(kind, rest, signatures, types, ctx)]
+      end)
+
+    [Common.encode_string(mod), 0x00, 0x7F, Common.encode_u32(length(group)) | items]
+  end
+
   def encode_import(item, signatures, types) do
     ctx = %{signatures: signatures, types: types}
     encode_import(item, signatures, types, ctx)
@@ -642,13 +707,11 @@ defmodule Watusi.Encoder.Sections do
 
     type_bytes =
       case type do
-        {:ref, [{:keyword, "ref"}, {:id, id}]} ->
-          # For globals with (ref $id), encode as pack_symbol directly
-          pack_symbol(id, false)
+        {:ref, [{:keyword, "ref"}, {:keyword, "null"}, {:keyword, _}] = ref} ->
+          encode_valtype({:ref, ref}, ctx)
 
-        {:ref, [{:keyword, "ref"}, {:keyword, "null"}, {:id, id}]} ->
-          # For globals with (ref null $id), encode as pack_symbol with nullable
-          pack_symbol(id, true)
+        {:ref, [{:keyword, "ref"}, {:keyword, _}] = ref} ->
+          encode_valtype({:ref, ref}, ctx)
 
         {:ref, _} ->
           encode_valtype(type, ctx)
@@ -688,48 +751,67 @@ defmodule Watusi.Encoder.Sections do
   end
 
   def encode_table([{:keyword, "table"} | rest], ctx) do
-    # Table type defaults to funcref (0x70) if not specified
-    type_node =
-      Enum.find(rest, fn
-        {:keyword, k} when k in @reftypes -> true
-        [{:keyword, "ref"} | _] -> true
-        _ -> false
-      end) || "funcref"
-
-    type_bytes = encode_valtype(Instructions.valtype(type_node), ctx)
-
-    inline_elem =
-      Enum.find(rest, fn
-        [{:keyword, "elem"} | _] -> true
-        _ -> false
-      end)
-
+    # Remove name and inline exports from the definition list before processing
     rest =
       Enum.reject(rest, fn
         {:id, _} -> true
-        {:keyword, k} when k in @reftypes -> true
         [{:keyword, "export"}, _] -> true
-        [{:keyword, "elem"} | _] -> true
         _ -> false
       end)
 
-    limits =
-      case {Enum.any?(rest, &match?({:int, _}, &1)), inline_elem} do
-        {false, [{:keyword, "elem"} | funcs]} ->
-          elem_count =
-            Enum.count(funcs, fn
-              {:id, _} -> true
-              {:int, _} -> true
-              _ -> false
-            end)
+    # Extract an inline initializer expression if present. It appears as the last list
+    # node that is an instruction (e.g. [ref.func ...], [global.get ...]); this must be
+    # distinguished from the reftype ([ref ...]) which is not an instruction.
+    {rest, init_expr} = extract_table_init_expr(rest)
 
-          [0x01, Common.encode_u32(elem_count), Common.encode_u32(elem_count)]
+    # Split limit integers (and the i64 marker) from the reftype descriptor. They
+    # may appear before or after the reftype depending on the WAT form.
+    {limit_nodes, reftype_candidates} =
+      Enum.split_with(rest, fn
+        {:int, _} -> true
+        {:keyword, "i64"} -> true
+        _ -> false
+      end)
 
-        _ ->
-          encode_limits(rest)
+    reftype_node =
+      case reftype_candidates do
+        [] -> "funcref"
+        [rt | _] -> rt
       end
 
-    [type_bytes, limits]
+    reftype_bytes = encode_valtype(Instructions.valtype(reftype_node), ctx)
+    limits_bytes = encode_limits(limit_nodes)
+
+    case init_expr do
+      nil ->
+        [reftype_bytes, limits_bytes]
+
+      ie ->
+        init_instrs =
+          ie
+          |> InstrEncoder.collect_instructions(ctx)
+          |> Enum.map(&InstrEncoder.encode_instruction(&1, ctx))
+
+        [0x40, 0x00, reftype_bytes, limits_bytes, init_instrs, 0x0B]
+    end
+  end
+
+  # Splits an inline table definition into the trailing initializer expression (if any)
+  # and the remaining nodes. The initializer is the last list node that is an
+  # instruction (e.g. [ref.func ...], [global.get ...]); a leading [ref ...] node is
+  # a reftype descriptor, not an instruction, and is left in place.
+  defp extract_table_init_expr(rest) do
+    case Enum.reverse(rest) do
+      [ie | tail] when is_list(ie) ->
+        case ie do
+          [{:keyword, "ref"} | _] -> {rest, nil}
+          [{:keyword, _} | _] -> {Enum.reverse(tail), ie}
+          _ -> {rest, nil}
+        end
+
+      _ ->
+        {rest, nil}
+    end
   end
 
   def encode_memory([{:keyword, "memory"} | rest]) do
@@ -816,10 +898,13 @@ defmodule Watusi.Encoder.Sections do
 
   defp extract_global_type({:keyword, t}), do: {t, 0x00}
   defp extract_global_type([{:keyword, "mut"}, {:keyword, t}]), do: {t, 0x01}
-  # Handle reference types in globals: (ref $t) or (mut (ref $t))
+  # Handle reference types in globals: (ref $t), (ref null <heaptype>) or (mut (ref ...))
   defp extract_global_type([{:keyword, "ref"}, _] = t), do: {{:ref, t}, 0x00}
+  defp extract_global_type([{:keyword, "ref"}, {:keyword, "null"}, _] = t), do: {{:ref, t}, 0x00}
 
   defp extract_global_type([{:keyword, "mut"}, [{:keyword, "ref"}, _] = t]),
+    do: {{:ref, t}, 0x01}
+  defp extract_global_type([{:keyword, "mut"}, [{:keyword, "ref"}, {:keyword, "null"}, _] = t]),
     do: {{:ref, t}, 0x01}
 
   def encode_tag([{:keyword, "tag"} | rest], signatures, _types) do
@@ -868,11 +953,27 @@ defmodule Watusi.Encoder.Sections do
       |> extract_elem_expr_nodes()
       |> Enum.reject(&(&1 == offset_node))
 
-    {indices, has_expr_payload} =
+    {bare_indices, indices, has_expr_payload} =
       resolve_elem_payload(rest, offset_node, expr_nodes, reftype, ctx)
 
+    reftype_str = reftype_to_string(reftype)
+    needs_explicit_reftype = reftype_str not in ["funcref", "func", "anyfunc"]
+
+    # Reference-type element segments (any reftype other than funcref/func/anyfunc)
+    # encode their elements as reference expressions; bare function references are
+    # wrapped in ref.func expressions.
+    use_expr_form = needs_explicit_reftype or has_expr_payload
+
+    elem_expr_nodes =
+      if use_expr_form do
+        expr_nodes ++
+          Enum.map(bare_indices, fn idx -> [{:keyword, "ref.func"}, {:int, idx}] end)
+      else
+        expr_nodes
+      end
+
     encoded_exprs =
-      Common.encode_vector(expr_nodes, fn expr_node ->
+      Common.encode_vector(elem_expr_nodes, fn expr_node ->
         expr_instrs =
           [expr_node]
           |> InstrEncoder.collect_instructions(ctx)
@@ -881,17 +982,8 @@ defmodule Watusi.Encoder.Sections do
         [expr_instrs, 0x0B]
       end)
 
-    reftype_str =
-      case reftype do
-        {:keyword, k} -> k
-        k when is_binary(k) -> k
-        _ -> "funcref"
-      end
-
-    needs_explicit_reftype = reftype_str not in ["funcref", "func", "anyfunc"]
-
     encode_elem_segment(
-      {is_declarative, is_passive, has_expr_payload, table_idx, needs_explicit_reftype},
+      {is_declarative, is_passive, use_expr_form, table_idx, needs_explicit_reftype},
       reftype_bytes,
       encoded_exprs,
       indices,
@@ -1045,6 +1137,14 @@ defmodule Watusi.Encoder.Sections do
     end
   end
 
+  defp reftype_to_string({:keyword, k}), do: k
+  defp reftype_to_string(k) when is_binary(k), do: k
+  defp reftype_to_string([{:keyword, "ref"}, {:keyword, "null"}, {:id, _}]), do: "ref null idx"
+  defp reftype_to_string([{:keyword, "ref"}, {:keyword, "null"}, {:keyword, k}]), do: k
+  defp reftype_to_string([{:keyword, "ref"}, {:keyword, k}]), do: k
+  defp reftype_to_string([{:keyword, "ref"}, {:id, _}]), do: "ref idx"
+  defp reftype_to_string(_), do: "funcref"
+
   defp resolve_elem_payload(rest, offset_node, expr_nodes, reftype, ctx) do
     expr_ref_func_indices =
       Enum.flat_map(expr_nodes, fn
@@ -1058,12 +1158,7 @@ defmodule Watusi.Encoder.Sections do
           []
       end)
 
-    reftype_str =
-      case reftype do
-        {:keyword, k} -> k
-        k when is_binary(k) -> k
-        _ -> "funcref"
-      end
+    reftype_str = reftype_to_string(reftype)
 
     is_legacy_funcref_expr =
       case {reftype_str in ["funcref", "func", "anyfunc"], expr_nodes, expr_ref_func_indices} do
@@ -1073,7 +1168,7 @@ defmodule Watusi.Encoder.Sections do
 
     has_expr_payload = expr_nodes != [] and not is_legacy_funcref_expr
 
-    indices =
+    bare_indices =
       rest
       |> Enum.reject(&(&1 == offset_node))
       |> Enum.flat_map(fn
@@ -1081,9 +1176,10 @@ defmodule Watusi.Encoder.Sections do
         {:int, i} -> [i]
         _ -> []
       end)
-      |> Kernel.++(expr_ref_func_indices)
 
-    {indices, has_expr_payload}
+    indices = bare_indices ++ expr_ref_func_indices
+
+    {bare_indices, indices, has_expr_payload}
   end
 
   def encode_data([{:keyword, "data"} | rest], ctx) do
@@ -1190,7 +1286,12 @@ defmodule Watusi.Encoder.Sections do
     locals =
       Enum.flat_map(rest, fn
         [{:keyword, "local"} | ts] ->
-          Enum.reject(ts, &match?({:id, _}, &1)) |> Enum.map(fn {:keyword, t} -> t end)
+          Enum.reject(ts, &match?({:id, _}, &1))
+          |> Enum.flat_map(fn
+            {:keyword, t} -> [t]
+            other when is_list(other) -> [other]
+            _ -> []
+          end)
 
         _ ->
           []
@@ -1200,7 +1301,7 @@ defmodule Watusi.Encoder.Sections do
 
     encoded_locals =
       Common.encode_vector(grouped_locals, fn {count, t} ->
-        [Common.encode_u32(count), Instructions.valtype(t)]
+        [Common.encode_u32(count), encode_valtype(Instructions.valtype(t), ctx)]
       end)
 
     instructions = InstrEncoder.collect_instructions(rest, ctx)
