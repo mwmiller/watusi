@@ -1,4 +1,7 @@
-ExUnit.start(max_cases: System.schedulers_online() * 4)
+# Default test runs exclude spec tests tagged :known_failure (known to fail on the
+# current toolchain, e.g. missing proposal support in the installed wat2wasm 1.0.41).
+# Run them explicitly with: mix test --include known_failure
+ExUnit.start(max_cases: System.schedulers_online() * 4, exclude: [:known_failure])
 
 defmodule Watusi.TestHelper do
   @moduledoc """
@@ -100,8 +103,8 @@ defmodule Watusi.TestHelper do
 
     try do
       case System.cmd("wat2wasm", ["--enable-all", wat_path, "-o", wasm_path],
-             stderr_to_stdout: true
-           ) do
+              stderr_to_stdout: true
+            ) do
         {_output, 0} -> {:ok, File.read!(wasm_path)}
         {output, _} -> {:error, output}
       end
