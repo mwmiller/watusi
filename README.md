@@ -93,6 +93,3 @@ Watusi is tested against the [WebAssembly Binary Toolkit (WABT)](https://github.
 
 Over 5,000 official spec vectors are included, covering core instructions and advanced extensions. A small subset (currently 75) that exercises features not yet fully supported—primarily Reference-Types and Function-References—is tagged `:known_failure` and excluded from the default run. Run them explicitly with `mix test --include known_failure`; see `test/spec_vectors/README.md` for details.
 
-## License
-
-Watusi is released under the MIT License. See the [LICENSE](LICENSE) file for details.
