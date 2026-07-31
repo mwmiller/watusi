@@ -980,15 +980,18 @@ defmodule Watusi.Encoder.Sections do
 
     # wasm-tools writes the explicit table-index bit (0x02) whenever the
     # source names the segment's table, including inline table elements and
-    # table zero. A bare numeric table reference (`(elem 0 ...)`) is also
-    # explicit; only segments with no table clause at all are implicit.
+    # table zero, and for active expression segments whose reftype is not the
+    # abstract funcref (the MVP implicit-table encoding only supports funcref).
+    # A bare numeric table reference (`(elem 0 ...)`) is also explicit; only
+    # funcref segments with no table clause at all are implicit.
     explicit_index? =
-      not is_passive and not is_declarative and (explicit_table? or inline_elem?)
+      not is_passive and not is_declarative and
+        (explicit_table? or inline_elem? or (use_expr_form and not funcref_reftype?(reftype_node)))
 
-    # The element type byte is written for passive, declared, explicit-index
-    # and expr-form segments only. Legacy funcidx forms without an explicit
-    # table write no kind byte (implicitly `func`).
-    write_type? = is_passive or is_declarative or explicit_index? or use_expr_form
+    # The element type byte is written for passive, declared and explicit-index
+    # segments only. The implicit-table funcref forms (flags 0 and 4) write no
+    # type byte; flags 4 carries no reftype at all, matching wasm-tools.
+    write_type? = is_passive or is_declarative or explicit_index?
 
     type_byte =
       if write_type? do
@@ -1048,6 +1051,13 @@ defmodule Watusi.Encoder.Sections do
   defp legacy_func_reftype?(nil), do: true
   defp legacy_func_reftype?({:keyword, "func"}), do: true
   defp legacy_func_reftype?(_), do: false
+
+  # Whether the segment's reftype is the abstract funcref family, which is the
+  # only type the implicit-table active forms (flags 0 and 4) can carry.
+  defp funcref_reftype?(nil), do: true
+  defp funcref_reftype?({:keyword, k}) when k in ["funcref", "anyfunc"], do: true
+  defp funcref_reftype?([{:keyword, "ref"}, {:keyword, "null"}, {:keyword, "func"}]), do: true
+  defp funcref_reftype?(_), do: false
 
   # The reftype byte written in the expr form. The abstract `funcref`/`externref`
   # types and their nullable `(ref null ...)` spellings collapse to the single
