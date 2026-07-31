@@ -5,7 +5,8 @@ defmodule Watusi.SpecTest do
   @spec_vectors_dir "test/spec_vectors"
 
   # Paths of spec tests that are known to fail on the current toolchain
-  # (e.g. missing proposal support in the installed wat2wasm 1.0.41).
+  # (e.g. proposal support Watusi does not yet implement, or byte-level
+  # differences from the wasm-tools reference).
   # These are excluded from default test runs via the :known_failure tag.
   # Regenerate by running the :known_failure-tagged tests, recording the
   # failing .wat paths, and writing them one-per-line here.

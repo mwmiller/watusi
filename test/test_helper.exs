@@ -1,5 +1,5 @@
 # Default test runs exclude spec tests tagged :known_failure (known to fail on the
-# current toolchain, e.g. missing proposal support in the installed wat2wasm 1.0.41).
+# current toolchain, e.g. proposal support Watusi does not yet implement).
 # Run them explicitly with: mix test --include known_failure
 ExUnit.start(max_cases: System.schedulers_online() * 4, exclude: [:known_failure])
 
@@ -11,7 +11,7 @@ defmodule Watusi.TestHelper do
 
   @doc """
   Compares Watusi's output for a given WAT string against pre-generated reference WASM.
-  Falls back to wat2wasm if reference doesn't exist.
+  Falls back to wasm-tools if reference doesn't exist.
   """
   def assert_wasm_parity(wat, path_or_name \\ nil) do
     ref_wasm_path = get_ref_path(path_or_name)
@@ -99,18 +99,28 @@ defmodule Watusi.TestHelper do
     tmp_path = Path.join(System.tmp_dir!(), "watusi_ref_#{System.unique_integer([:positive])}")
     wat_path = "#{tmp_path}.wat"
     wasm_path = "#{tmp_path}.wasm"
+    stripped_path = "#{tmp_path}.stripped.wasm"
     File.write!(wat_path, wat)
 
     try do
-      case System.cmd("wat2wasm", ["--enable-all", wat_path, "-o", wasm_path],
-              stderr_to_stdout: true
-            ) do
-        {_output, 0} -> {:ok, File.read!(wasm_path)}
+      # wasm-tools is the reference toolchain. `parse` emits a name section, so
+      # strip it back out for byte-level comparison with Watusi's output.
+      with {_output, 0} <-
+             System.cmd("wasm-tools", ["parse", wat_path, "-o", wasm_path],
+               stderr_to_stdout: true
+             ),
+           {_output, 0} <-
+             System.cmd("wasm-tools", ["strip", "--all", "-o", stripped_path, wasm_path],
+               stderr_to_stdout: true
+             ) do
+        {:ok, File.read!(stripped_path)}
+      else
         {output, _} -> {:error, output}
       end
     after
       File.rm_rf(wat_path)
       File.rm_rf(wasm_path)
+      File.rm_rf(stripped_path)
     end
   end
 
@@ -119,9 +129,11 @@ defmodule Watusi.TestHelper do
     File.write!(path, binary)
 
     try do
-      case System.cmd("wasm-validate", ["--enable-all", path], stderr_to_stdout: true) do
+      case System.cmd("wasm-tools", ["validate", "--features", "all", path],
+             stderr_to_stdout: true
+           ) do
         {_output, 0} -> :ok
-        {output, _} -> flunk("Generated WASM failed wasm-validate:\n#{output}")
+        {output, _} -> flunk("Generated WASM failed wasm-tools validate:\n#{output}")
       end
     after
       File.rm_rf(path)
@@ -135,9 +147,14 @@ defmodule Watusi.TestHelper do
     File.write!(path, binary)
 
     try do
-      case System.cmd("wasm-validate", [path], stderr_to_stdout: true) do
-        {_output, 0} -> flunk("Expected WASM to be invalid, but it passed wasm-validate")
-        {_output, _} -> :ok
+      case System.cmd("wasm-tools", ["validate", "--features", "all", path],
+             stderr_to_stdout: true
+           ) do
+        {_output, 0} ->
+          flunk("Expected WASM to be invalid, but it passed wasm-tools validate")
+
+        {_output, _} ->
+          :ok
       end
     after
       File.rm_rf(path)
