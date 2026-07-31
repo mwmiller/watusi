@@ -31,9 +31,7 @@ defmodule Mix.Tasks.GenRefs do
     # byte-level comparison with Watusi's output.
     result =
       with {_output, 0} <-
-             System.cmd("wasm-tools", ["parse", wat_path, "-o", ref_path],
-               stderr_to_stdout: true
-             ),
+             System.cmd("wasm-tools", ["parse", wat_path, "-o", ref_path], stderr_to_stdout: true),
            {_output, 0} <-
              System.cmd("wasm-tools", ["strip", "--all", "-o", stripped_path, ref_path],
                stderr_to_stdout: true
