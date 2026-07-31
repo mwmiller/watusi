@@ -635,32 +635,10 @@ defmodule Watusi.Encoder.Sections do
   def encode_import_section(imports, signatures, types) do
     ctx = %{signatures: signatures, types: types}
 
-    groups =
-      Enum.chunk_by(imports, fn item ->
-        {mod, _, _, _} = normalize_import(item)
-        mod
-      end)
-
     [
       Common.encode_u32(length(imports))
-      | Enum.flat_map(groups, &encode_import_group(&1, signatures, types, ctx))
+      | Enum.map(imports, &encode_import(&1, signatures, types, ctx))
     ]
-  end
-
-  defp encode_import_group([item], signatures, types, ctx) do
-    encode_import(item, signatures, types, ctx)
-  end
-
-  defp encode_import_group(group, signatures, types, ctx) do
-    {mod, _, _, _} = normalize_import(hd(group))
-
-    items =
-      Enum.flat_map(group, fn item ->
-        {_mod, name, kind, rest} = normalize_import(item)
-        [Common.encode_string(name) | do_encode_import(kind, rest, signatures, types, ctx)]
-      end)
-
-    [Common.encode_string(mod), 0x00, 0x7F, Common.encode_u32(length(group)) | items]
   end
 
   def encode_import(item, signatures, types) do
