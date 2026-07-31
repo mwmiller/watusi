@@ -10,7 +10,7 @@ Watusi provides a pure-Elixir pipeline for transforming human-readable WebAssemb
 - **High Performance**: Optimized lexer and encoder with compile-time code generation for maximum speed.
 - **Modern Standards**: Core 1.0 plus Bulk Memory, Fixed-width SIMD, Threads/Atomics, Sign-extension, Non-trapping float-to-int, and Exception Handling proposals. Reference-Types and Function-References are partially supported.
 - **Developer Friendly**: Optional debug names and detailed identifier resolution.
-- **Spec Compliant**: Tested against the official WABT spec vectors (5,000+) with bit-for-bit parity to `wat2wasm`.
+- **Spec Compliant**: Tested against the official spec vectors (5,000+) with bit-for-bit parity to `wasm-tools`.
 
 ## Performance
 
@@ -89,7 +89,7 @@ wasm_with_names = Watusi.to_wasm(wat, debug_names: true)
 
 ## Testing
 
-Watusi is tested against the [WebAssembly Binary Toolkit (WABT)](https://github.com/WebAssembly/wabt). The test suite compiles each WABT `.wat` vector with `wat2wasm` and verifies bit-for-bit parity with Watusi's output, then validates generated binaries with `wasm-validate`.
+Watusi is tested against the [bytecodealliance/wasm-tools](https://github.com/bytecodealliance/wasm-tools). The test suite compiles each `.wat` vector with `wasm-tools parse` (stripped with `wasm-tools strip --all`) and verifies bit-for-bit parity with Watusi's output, then validates generated binaries with `wasm-tools validate --features all`.
 
-Over 5,000 official spec vectors are included, covering core instructions and advanced extensions. A small subset (currently 75) that exercises features not yet fully supported—primarily Reference-Types and Function-References—is tagged `:known_failure` and excluded from the default run. Run them explicitly with `mix test --include known_failure`; see `test/spec_vectors/README.md` for details.
+Over 5,000 official spec vectors are included, covering core instructions and advanced extensions. A subset (currently 139) that exercises features not yet fully supported—primarily the Garbage Collection proposal—is tagged `:known_failure` and excluded from the default run. Run them explicitly with `mix test --include known_failure`; see `test/spec_vectors/README.md` for details.
 

@@ -1,7 +1,8 @@
-# WABT Spec Vectors
+# wasm-tools Spec Vectors
 
-This directory contains the official [WebAssembly Binary Toolkit (WABT)](https://github.com/WebAssembly/wabt)
-spec test vectors used to validate Watusi's WAT → WASM encoder.
+This directory contains the official WebAssembly spec test vectors (from the
+[spec repository](https://github.com/WebAssembly/spec)) used to validate
+Watusi's WAT → WASM encoder.
 
 ## Layout
 
@@ -18,22 +19,23 @@ There are 2,380 `ok` vectors and 2,683 `fail` vectors, for a total of 5,063 vect
 `test/spec_test.exs` discovers every `.wat` file and generates one ExUnit test per file:
 
 - For `ok/<name>.wat`, the test compiles the module with Watusi and compares the result **byte-for-byte**
-  against a reference binary produced by `wat2wasm` (`--enable-all`).
+  against a reference binary produced by `wasm-tools` (`wasm-tools parse` piped through
+  `wasm-tools strip --all`, so both sides have the name section removed).
 - For `fail/<name>.wat`, the test asserts that the module does **not** produce a valid WASM binary
-  (Watusi's output is rejected by `wasm-validate`).
+  (Watusi's output is rejected by `wasm-tools validate --features all`).
 
-References are produced **live** at test time by `wat2wasm` via `test/test_helper.exs`
+References are produced **live** at test time by `wasm-tools` via `test/test_helper.exs`
 (`handle_missing_reference` / `compile_reference`). Optionally, a pre-built `.ref.wasm` may be committed
 next to a `.wat` file; when present it is used as the reference instead of compiling on the fly. Generate
 these with `mix gen_refs`. By default no `.ref.wasm` files are committed, so references are compiled live.
 
 ## Known failures
 
-A small subset of vectors exercises features Watusi does not yet fully support. These paths are listed in
+A subset of vectors exercises features Watusi does not yet fully support. These paths are listed in
 `test/known_failures.txt`; `test/spec_test.exs` tags matching tests with `@tag :known_failure`, and because
 `test/test_helper.exs` starts ExUnit with `exclude: [:known_failure]`, they are skipped by default so the
-suite stays green. There are currently **75** such vectors, mostly covering Reference-Types and
-Function-References.
+suite stays green. There are currently **139** such vectors, overwhelmingly covering the Garbage Collection
+proposal (which Watusi does not yet implement) plus a handful of other reference-types vectors.
 
 Run the full suite including the known failures:
 
@@ -43,11 +45,10 @@ mix test --include known_failure
 
 ## Tooling requirements
 
-The spec suite requires [WABT](https://github.com/WebAssembly/wabt) on your `PATH`:
+The spec suite requires [wasm-tools](https://github.com/bytecodealliance/wasm-tools) on your `PATH`:
 
-- `wat2wasm`     – reference encoder (invoked with `--enable-all`).
-- `wasm-validate` – used to confirm that `fail/` vectors produce invalid binaries.
+- `wasm-tools` – reference encoder/decoder (`parse`, `strip --all`) and validator
+  (`validate --features all`).
 
-Note: the suite only exercises proposals that the local `wat2wasm --enable-all` can compile. Vectors for
-proposals the toolchain does not enable here (for example the Garbage Collection proposal) are skipped and
-are therefore not validated by the suite.
+Note: the suite covers every proposal the installed `wasm-tools` parses. Vectors Watusi cannot yet encode
+(e.g. the Garbage Collection proposal) are listed in `test/known_failures.txt` and are skipped by default.
