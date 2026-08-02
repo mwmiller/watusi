@@ -8,7 +8,7 @@ Watusi provides a pure-Elixir pipeline for transforming human-readable WebAssemb
 
 - **Native Elixir**: No external dependencies or tools required - pure Elixir implementation.
 - **High Performance**: Optimized lexer and encoder with compile-time code generation for maximum speed.
-- **Modern Standards**: Core 1.0 plus Bulk Memory, Fixed-width SIMD, Threads/Atomics, Sign-extension, Non-trapping float-to-int, and Exception Handling proposals. Reference-Types and Function-References are partially supported.
+- **Modern Standards**: Core 1.0 plus Bulk Memory, Fixed-width SIMD, Threads/Atomics, Sign-extension, Non-trapping float-to-int, Exception Handling, and Garbage Collection proposals. Reference-Types and Function-References are partially supported.
 - **Developer Friendly**: Optional debug names and detailed identifier resolution.
 - **Spec Compliant**: Tested against the official spec vectors (5,000+) with bit-for-bit parity to `wasm-tools`.
 
@@ -27,10 +27,11 @@ Watusi adheres to the following standards:
 - WebAssembly Sign-extension Operators.
 - WebAssembly Nontrapping Float-to-int Conversions.
 - WebAssembly Exception Handling Proposal.
+- WebAssembly Garbage Collection Proposal (partial): recursive/sub-typed type groups, struct/array types, and GC/ref instructions.
 - WebAssembly Reference-Types and Function-References (partial).
 - IEEE 754-2019 for floating-point representation.
 
-> The Garbage Collection proposal is not yet validated by the suite (see `test/spec_vectors/README.md`).
+> A subset of GC/ref vectors is not yet fully supported; see `test/spec_vectors/README.md`.
 
 ## Installation
 
@@ -91,5 +92,5 @@ wasm_with_names = Watusi.to_wasm(wat, debug_names: true)
 
 Watusi is tested against the [bytecodealliance/wasm-tools](https://github.com/bytecodealliance/wasm-tools). The test suite compiles each `.wat` vector with `wasm-tools parse` (stripped with `wasm-tools strip --all`) and verifies bit-for-bit parity with Watusi's output, then validates generated binaries with `wasm-tools validate --features all`.
 
-Over 5,000 official spec vectors are included, covering core instructions and advanced extensions. A subset (currently 139) that exercises features not yet fully supported—primarily the Garbage Collection proposal—is tagged `:known_failure` and excluded from the default run. Run them explicitly with `mix test --include known_failure`; see `test/spec_vectors/README.md` for details.
+Over 5,000 official spec vectors are included, covering core instructions and advanced extensions. A subset (currently 129) exercising features not yet fully supported—mostly the fine-grained corners of the Garbage Collection proposal—is tagged `:known_failure` and excluded from the default run. Run them explicitly with `mix test --include known_failure`; see `test/spec_vectors/README.md` for details.
 

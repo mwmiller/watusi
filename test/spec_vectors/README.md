@@ -34,8 +34,8 @@ these with `mix gen_refs`. By default no `.ref.wasm` files are committed, so ref
 A subset of vectors exercises features Watusi does not yet fully support. These paths are listed in
 `test/known_failures.txt`; `test/spec_test.exs` tags matching tests with `@tag :known_failure`, and because
 `test/test_helper.exs` starts ExUnit with `exclude: [:known_failure]`, they are skipped by default so the
-suite stays green. There are currently **139** such vectors, overwhelmingly covering the Garbage Collection
-proposal (which Watusi does not yet implement) plus a handful of other reference-types vectors.
+suite stays green. There are currently 129 such vectors, mostly covering the deeper corners of the Garbage
+Collection proposal (subtyping/recursion nuances and GC instructions).
 
 Run the full suite including the known failures:
 
@@ -50,5 +50,5 @@ The spec suite requires [wasm-tools](https://github.com/bytecodealliance/wasm-to
 - `wasm-tools` – reference encoder/decoder (`parse`, `strip --all`) and validator
   (`validate --features all`).
 
-Note: the suite covers every proposal the installed `wasm-tools` parses. Vectors Watusi cannot yet encode
-(e.g. the Garbage Collection proposal) are listed in `test/known_failures.txt` and are skipped by default.
+Note: the suite covers every proposal the installed `wasm-tools` parses. The handful of vectors Watusi still
+cannot encode are listed in `test/known_failures.txt` and are skipped by default.
