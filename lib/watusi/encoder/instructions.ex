@@ -926,10 +926,6 @@ defmodule Watusi.Encoder.Instructions do
   defp ref_is_nullable?({:keyword, k}) when k in @nullable_abstract_refs, do: true
   defp ref_is_nullable?(_), do: false
 
-  defp encode_reftype(reftype, ctx) do
-    Sections.encode_valtype(Instructions.valtype(reftype), ctx)
-  end
-
   defp encode_br_on_cast(args, ctx, name, labels) do
     op = if name == "br_on_cast", do: 0x18, else: 0x19
 
