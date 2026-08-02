@@ -15,7 +15,6 @@ test/spec_vectors/array/ok/module_2.wat
 test/spec_vectors/array/ok/module_5.wat
 test/spec_vectors/array/ok/module_6.wat
 test/spec_vectors/array/ok/module_8.wat
-test/spec_vectors/block/ok/module_0.wat
 test/spec_vectors/br_on_cast_fail/fail/module_4.wat
 test/spec_vectors/br_on_cast_fail/fail/module_6.wat
 test/spec_vectors/br_on_cast_fail/fail/module_7.wat
@@ -35,8 +34,6 @@ test/spec_vectors/i31/ok/module_3.wat
 test/spec_vectors/i31/ok/module_4.wat
 test/spec_vectors/i31/ok/module_5.wat
 test/spec_vectors/i31/ok/module_6.wat
-test/spec_vectors/if/ok/module_0.wat
-test/spec_vectors/loop/ok/module_0.wat
 test/spec_vectors/ref_cast/ok/module_0.wat
 test/spec_vectors/ref_cast/ok/module_1.wat
 test/spec_vectors/ref_eq/ok/module_0.wat
@@ -55,7 +52,6 @@ test/spec_vectors/tag/fail/module_3.wat
 test/spec_vectors/tag/ok/module_4.wat
 test/spec_vectors/tag/ok/module_5.wat
 test/spec_vectors/tag/ok/module_6.wat
-test/spec_vectors/try_table/ok/module_1.wat
 test/spec_vectors/try_table/ok/module_13.wat
 test/spec_vectors/type-canon/ok/module_0.wat
 test/spec_vectors/type-canon/ok/module_1.wat
