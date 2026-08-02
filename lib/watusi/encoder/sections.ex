@@ -1506,6 +1506,9 @@ defmodule Watusi.Encoder.Sections do
        when is_inline_elem_entry_kind(k),
        do: node
 
+  # Generic wrapped folded expression item, e.g. (item (ref.i31 (i32.const 9)))
+  defp normalize_item_expr([[{:keyword, _} | _] = node | _]), do: node
+
   defp normalize_item_expr(_), do: nil
 
   def encode_func_body([{:keyword, "func"} | rest] = func, ctx) do

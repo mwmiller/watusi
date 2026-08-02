@@ -12,6 +12,7 @@ defmodule Watusi.Encoder.Instructions do
   @global_ops ["global.get", "global.set"]
   @tag_ops ["throw", "rethrow", "catch", "catch_ref"]
   @nullable_abstract_refs ["funcref", "externref", "anyref", "eqref", "structref", "arrayref", "i31ref", "exnref"]
+  @unary_operand_ops ["ref.i31", "any.convert_extern", "extern.convert_any"]
   @f32_overflow_midpoint (1 <<< 128) - (1 <<< 103)
   @simd_shapes ["i8x16", "i16x8", "i32x4", "i64x2", "f32x4", "f64x2"]
 
@@ -972,17 +973,12 @@ defmodule Watusi.Encoder.Instructions do
   end
 
   defp encode_gc_type_immediates(name, args, ctx) do
-    # 1. Resolve type index (first immediate for most GC instructions)
+    # 1. Resolve type index (always the first immediate for GC instructions)
     type_idx =
-      case Enum.find(args, &match?({:id, _}, &1)) do
-        {:id, id} ->
-          resolve_type_id(id, ctx)
-
-        _ ->
-          case Enum.find(args, &match?({:int, _}, &1)) do
-            {:int, i} -> i
-            _ -> 0
-          end
+      case List.first(args) do
+        {:id, id} -> resolve_type_id(id, ctx)
+        {:int, i} -> i
+        _ -> 0
       end
 
     # 2. Resolve field index (second immediate for struct.get/set)
@@ -1033,22 +1029,21 @@ defmodule Watusi.Encoder.Instructions do
            _ -> false
          end) do
       {:id, id} ->
-        # Find the field index in the struct definition
-        [[{:keyword, "struct"} | fields] | _] =
+        # Find the field index in the struct definition. Named field indices
+        # count storage entries, so grouped fields like `(field i32 i32)`
+        # contribute more than one index before a later named field.
+        [[{:keyword, "struct"} | tokens] | _] =
           case type_item do
             [{:keyword, "type"}, {:id, _} | rest] -> rest
             [{:keyword, "type"} | rest] -> rest
           end
 
-        Enum.find_index(fields, fn
-          [{:keyword, "field"}, {:id, ^id} | _] -> true
-          _ -> false
-        end) || raise("Field not found: $#{id} in struct type #{type_idx}")
+        walk_struct_field_index(tokens, id, 0)
 
       _ ->
-        # Fallback to integer index
-        case Enum.filter(args, &match?({:int, _}, &1)) do
-          [_, {:int, i} | _] -> i
+        # Fallback to integer index (the second immediate after the type)
+        case args do
+          [_type, {:int, i} | _] -> i
           _ -> 0
         end
     end
@@ -1057,6 +1052,40 @@ defmodule Watusi.Encoder.Instructions do
   defp type_is_id?(id, ctx) do
     Enum.any?(ctx.types, &match?([{:keyword, "type"}, {:id, ^id} | _], &1))
   end
+
+  # A struct's tokens are each a field declaration (possibly carrying names
+  # and multiple storage entries). Resolve a named field to its zero-based
+  # entry index, counting entries contributed by preceding declarations.
+  defp walk_struct_field_index(tokens, id, _acc) do
+    result =
+      Enum.reduce_while(tokens, 0, fn decl, acc ->
+        if field_decl_named?(decl, id) do
+          {:halt, {:found, acc}}
+        else
+          {:cont, acc + field_decl_entry_count(decl)}
+        end
+      end)
+
+    case result do
+      {:found, idx} -> idx
+      _ -> raise("Field not found: $#{id} in struct")
+    end
+  end
+
+  defp field_decl_named?([{:keyword, "field"} | rest], id) do
+    Enum.any?(rest, &match?({:id, ^id}, &1))
+  end
+
+  defp field_decl_named?(_, _), do: false
+
+  defp field_decl_entry_count([{:keyword, "field"} | rest]) do
+    rest |> Enum.reject(&match?({:id, _}, &1)) |> length()
+  end
+
+  defp field_decl_entry_count(tokens) when is_list(tokens),
+    do: tokens |> Enum.reject(&match?({:id, _}, &1)) |> length()
+
+  defp field_decl_entry_count(_), do: 1
 
   defp encode_table_immediates(_name, args, ctx) do
     case args do
@@ -2175,6 +2204,23 @@ defmodule Watusi.Encoder.Instructions do
     do_collect_instructions(rest, ctx, acc, labels)
   end
 
+  # Unary/advanced ops whose folded operand sub-expression must precede the
+  # opcode in the value stack (e.g. (ref.i31 (global.get $g)) emits global.get
+  # before ref.i31). Handle the flat-tuple form used in inline table/elem
+  # initializers where the op node is a bare keyword rather than a list.
+  defp do_collect_instructions([{:keyword, name} | rest], ctx, acc, labels)
+       when name in @unary_operand_ops do
+    {operand_nodes, remaining} = split_operand_nodes(rest)
+
+    acc =
+      Enum.reduce(operand_nodes, acc, fn onode, a ->
+        operand_instrs = collect_instructions([onode], ctx, labels)
+        Enum.reduce(operand_instrs, a, &[&1 | &2])
+      end)
+
+    do_collect_instructions(remaining, ctx, [{:instr, name, [], labels} | acc], labels)
+  end
+
   defp do_collect_instructions([{:keyword, name} | rest], ctx, acc, labels) do
     # Standard flat instruction: i32.add
     {args, remaining} = collect_args(rest, [])
@@ -2277,6 +2323,23 @@ defmodule Watusi.Encoder.Instructions do
         _ -> false
       end)
       |> Enum.flat_map(&collect_instructions([&1], ctx, labels))
+
+  # In the flat unary-op form, the leading nodes that are folded sub-expressions
+  # are the op's operands and must be emitted before the opcode. Split them off;
+  # the remaining nodes are passed through (ids/int/keyword immediates).
+  defp split_operand_nodes(rest) do
+    {operands, remaining} =
+      Enum.split_while(rest, fn
+        [_ | _] = node -> not ref_type_node?(node)
+        _ -> false
+      end)
+
+    {operands, remaining}
+  end
+
+  defp ref_type_node?([{:keyword, "ref"} | _]), do: true
+  defp ref_type_node?([{:keyword, "mut"} | _]), do: true
+  defp ref_type_node?(_), do: false
 
   defp encode_catch([{:keyword, "catch"}, tag_id, label_id], ctx, labels) do
     [
