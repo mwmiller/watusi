@@ -554,7 +554,8 @@ defmodule Watusi.Encoder.Sections do
 
   def encode_signature({:struct, fields}, ctx) do
     # GC Struct type (0x5F) followed by vector of field types
-    [0x5F, Common.encode_vector(fields, &encode_field(&1, ctx))]
+    entries = Enum.flat_map(fields, &field_entries/1)
+    [0x5F, Common.encode_vector(entries, &encode_field_entry(&1, ctx))]
   end
 
   def encode_signature({:array, field}, ctx) do
@@ -650,6 +651,22 @@ defmodule Watusi.Encoder.Sections do
         _ -> extract_field_type(field)
       end
 
+    [encode_valtype(Instructions.valtype(type), ctx), mut]
+  end
+
+  # A WAT struct field like `(field i32 (ref $t))` declares multiple storage
+  # entries, each becoming its own encoded field.
+  defp field_entries([{:keyword, "field"} | types]) do
+    Enum.map(types, &token_to_field/1)
+  end
+
+  defp field_entries(field), do: [token_to_field(field)]
+
+  defp token_to_field([{:keyword, "mut"}, type]), do: {type, 0x01}
+  defp token_to_field(list) when is_list(list), do: {list, 0x00}
+  defp token_to_field({:keyword, type}), do: {type, 0x00}
+
+  defp encode_field_entry({type, mut}, ctx) do
     [encode_valtype(Instructions.valtype(type), ctx), mut]
   end
 
