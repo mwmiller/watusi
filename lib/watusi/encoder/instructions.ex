@@ -580,9 +580,9 @@ defmodule Watusi.Encoder.Instructions do
     [0x1C, Common.encode_vector(types, &Sections.encode_valtype(&1, %{}))]
   end
 
-  defp encode_standard_instruction(name, args, ctx, _labels)
+  defp encode_standard_instruction(name, args, ctx, labels)
        when name in ["ref.test", "ref.cast", "br_on_cast", "br_on_cast_fail"] do
-    encode_ref_cast_instruction(name, args, ctx)
+    encode_ref_cast_instruction(name, args, ctx, labels)
   end
 
   defp encode_standard_instruction(name, args, ctx, labels) do
@@ -900,7 +900,7 @@ defmodule Watusi.Encoder.Instructions do
     end
   end
 
-  defp encode_ref_cast_instruction(name, args, ctx) do
+  defp encode_ref_cast_instruction(name, args, ctx, labels) do
     case name do
       "ref.test" ->
         [<<0xFB, ref_cast_opcode(args, 0x14, 0x15)>>, encode_reftype(List.first(args), ctx)]
@@ -909,7 +909,7 @@ defmodule Watusi.Encoder.Instructions do
         [<<0xFB, ref_cast_opcode(args, 0x16, 0x17)>>, encode_reftype(List.first(args), ctx)]
 
       n when n in ["br_on_cast", "br_on_cast_fail"] ->
-        encode_br_on_cast(args, ctx, n)
+        encode_br_on_cast(args, ctx, n, labels)
     end
   end
 
@@ -927,17 +927,18 @@ defmodule Watusi.Encoder.Instructions do
     Sections.encode_valtype(Instructions.valtype(reftype), ctx)
   end
 
-  defp encode_br_on_cast(args, ctx, name) do
+  defp encode_br_on_cast(args, ctx, name, labels) do
     op = if name == "br_on_cast", do: 0x18, else: 0x19
 
     {depth, reftypes} =
       case args do
+        [{:id, label} | rest] -> {resolve_label(label, labels), rest}
         [{:int, d} | rest] -> {d, rest}
         [rt1 | rest] -> {0, [rt1 | rest]}
         _ -> {0, []}
       end
 
-    bin = [<<0xFB, op>>, <<0x00>>, LEB128.encode_signed(depth)]
+    bin = [<<0xFB, op>>, Common.encode_u32(depth), <<0x00>>]
     bin ++ Enum.flat_map(reftypes, &encode_reftype(&1, ctx))
   end
 
