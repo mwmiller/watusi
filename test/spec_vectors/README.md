@@ -50,5 +50,15 @@ The spec suite requires [wasm-tools](https://github.com/bytecodealliance/wasm-to
 - `wasm-tools` – reference encoder/decoder (`parse`, `strip --all`) and validator
   (`validate --features all`).
 
+References and validation are produced against the toolchain version in use. Parity to `wasm-tools` is
+assured for that version; a different `wasm-tools` build that changes binary output will require re-verifying
+the vectors. The versions used for the documented results are:
+
+| Tool | Version |
+|------|---------|
+| `wasm-tools` | 1.255.0 |
+| Elixir | 1.20.2 |
+| Erlang/OTP | 29 |
+
 Note: the suite covers every proposal the installed `wasm-tools` parses. The handful of vectors Watusi still
 cannot encode are listed in `test/known_failures.txt` and are skipped by default.
