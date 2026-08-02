@@ -488,6 +488,7 @@ defmodule Watusi.Encoder.Instructions do
     "ref.test",
     "ref.cast",
     "br_on_cast",
+    "br_on_cast_fail",
     "any.convert_extern",
     "extern.convert_any"
   ]
@@ -569,6 +570,11 @@ defmodule Watusi.Encoder.Instructions do
       end)
 
     [0x1C, Common.encode_vector(types, &Sections.encode_valtype(&1, %{}))]
+  end
+
+  defp encode_standard_instruction(name, args, ctx, _labels)
+       when name in ["ref.test", "ref.cast", "br_on_cast", "br_on_cast_fail"] do
+    encode_ref_cast_instruction(name, args, ctx)
   end
 
   defp encode_standard_instruction(name, args, ctx, labels) do
@@ -886,7 +892,58 @@ defmodule Watusi.Encoder.Instructions do
     end
   end
 
+  defp encode_ref_cast_instruction(name, args, ctx) do
+    case name do
+      "ref.test" ->
+        [<<0xFB, ref_cast_opcode(args, 0x14, 0x15)>>, encode_reftype(List.first(args), ctx)]
+
+      "ref.cast" ->
+        [<<0xFB, ref_cast_opcode(args, 0x16, 0x17)>>, encode_reftype(List.first(args), ctx)]
+
+      n when n in ["br_on_cast", "br_on_cast_fail"] ->
+        encode_br_on_cast(args, ctx, n)
+    end
+  end
+
+  defp ref_cast_opcode(args, nonnull, nullable) do
+    if ref_is_nullable?(List.first(args)), do: nullable, else: nonnull
+  end
+
+  defp ref_is_nullable?([{:keyword, "ref"}, {:keyword, "null"} | _]), do: true
+  defp ref_is_nullable?({:keyword, "nullref"}), do: true
+  defp ref_is_nullable?({:keyword, "nullfuncref"}), do: true
+  defp ref_is_nullable?({:keyword, "nullexternref"}), do: true
+  defp ref_is_nullable?(_), do: false
+
+  defp encode_reftype(reftype, ctx) do
+    Sections.encode_valtype(Instructions.valtype(reftype), ctx)
+  end
+
+  defp encode_br_on_cast(args, ctx, name) do
+    op = if name == "br_on_cast", do: 0x18, else: 0x19
+
+    {depth, reftypes} =
+      case args do
+        [{:int, d} | rest] -> {d, rest}
+        [rt1 | rest] -> {0, [rt1 | rest]}
+        _ -> {0, []}
+      end
+
+    bin = [<<0xFB, op>>, <<0x00>>, LEB128.encode_signed(depth)]
+    bin ++ Enum.flat_map(reftypes, &encode_reftype(&1, ctx))
+  end
+
   defp encode_gc_immediates(name, args, ctx) do
+    # Some GC/ref instructions carry no type immediate (e.g. any/extern
+    # conversion, ref shaping, i31 accessors).
+    if name in ["array.len", "any.convert_extern", "extern.convert_any"] do
+      []
+    else
+      encode_gc_type_immediates(name, args, ctx)
+    end
+  end
+
+  defp encode_gc_type_immediates(name, args, ctx) do
     # 1. Resolve type index (first immediate for most GC instructions)
     type_idx =
       case Enum.find(args, &match?({:id, _}, &1)) do
@@ -2078,8 +2135,12 @@ defmodule Watusi.Encoder.Instructions do
           # Metadata blocks like (memory $m) or (type $t) are immediates,
           # but nested instructions like (i32.const 1) are not.
           case item do
-            [{:keyword, k} | _] when k in ["memory", "type", "table", "result", "param"] -> true
-            _ -> false
+            [{:keyword, k} | _]
+            when k in ["memory", "type", "table", "result", "param", "ref", "mut"] ->
+              true
+
+            _ ->
+              false
           end
 
         _other ->
@@ -2154,7 +2215,12 @@ defmodule Watusi.Encoder.Instructions do
 
   defp collect_folded_args(args, ctx, labels),
     do:
-      Enum.filter(args, &match?([{:keyword, _} | _], &1))
+      Enum.filter(args, fn
+        [{:keyword, "ref"} | _] -> false
+        [{:keyword, "mut"} | _] -> false
+        [{:keyword, _} | _] -> true
+        _ -> false
+      end)
       |> Enum.flat_map(&collect_instructions([&1], ctx, labels))
 
   defp encode_catch([{:keyword, "catch"}, tag_id, label_id], ctx, labels) do

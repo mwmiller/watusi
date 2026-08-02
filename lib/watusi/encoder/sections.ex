@@ -562,10 +562,6 @@ defmodule Watusi.Encoder.Sections do
   def encode_valtype(type, _ctx) when is_integer(type), do: [type]
   def encode_valtype(type, _ctx) when is_binary(type), do: [Instructions.valtype(type)]
 
-  defp resolve_heap_type([{:keyword, "ref"}, arg], ctx) do
-    [0x64, resolve_heap_type_arg(arg, ctx, false)]
-  end
-
   defp resolve_heap_type([{:keyword, "ref"}, {:keyword, "null"}, arg], ctx) do
     # Nullable ref with abstract heap types use the direct valtype encoding
     case arg do
@@ -577,6 +573,10 @@ defmodule Watusi.Encoder.Sections do
     end
   end
 
+  defp resolve_heap_type([{:keyword, "ref"}, arg], ctx) do
+    [0x64, resolve_heap_type_arg(arg, ctx, false)]
+  end
+
   defp abstract_heap_valtype("func"), do: "funcref"
   defp abstract_heap_valtype("extern"), do: "externref"
   defp abstract_heap_valtype("any"), do: "anyref"
@@ -584,9 +584,11 @@ defmodule Watusi.Encoder.Sections do
   defp abstract_heap_valtype("struct"), do: "structref"
   defp abstract_heap_valtype("array"), do: "arrayref"
   defp abstract_heap_valtype("i31"), do: "i31ref"
+  defp abstract_heap_valtype("exn"), do: "exnref"
   defp abstract_heap_valtype("none"), do: "nullref"
   defp abstract_heap_valtype("nofunc"), do: "nullfuncref"
   defp abstract_heap_valtype("noextern"), do: "nullexternref"
+  defp abstract_heap_valtype("noexn"), do: "nullexnref"
 
   defp resolve_heap_type_arg(arg, ctx, nullable) do
     case arg do
