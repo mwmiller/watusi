@@ -767,34 +767,14 @@ defmodule Watusi.Encoder.Instructions do
 
         has_explicit_params = params != []
 
-        case Enum.find(args, &match?([{:keyword, "type"}, _], &1)) do
-          [{:keyword, "type"}, {:id, id}] ->
-            {type_params, type_results} =
-              Sections.extract_raw_signature(Enum.at(ctx.types, resolve_type_pos(id, ctx)))
+        case find_leading_type_use(args) do
+          {:id, id} ->
+            [LEB128.encode_signed(resolve_type_pos(id, ctx))]
 
-            effective_params = resolve_block_params(params, type_params)
-            effective_results = resolve_block_results(results, type_results)
+          {:int, i} ->
+            [LEB128.encode_signed(i)]
 
-            encode_blocktype(
-              effective_params,
-              effective_results,
-              ctx,
-              effective_params != []
-            )
-
-          [{:keyword, "type"}, {:int, i}] ->
-            {type_params, type_results} = Sections.extract_raw_signature(Enum.at(ctx.types, i))
-            effective_params = resolve_block_params(params, type_params)
-            effective_results = resolve_block_results(results, type_results)
-
-            encode_blocktype(
-              effective_params,
-              effective_results,
-              ctx,
-              effective_params != []
-            )
-
-          _ ->
+          nil ->
             encode_blocktype(params, results, ctx, has_explicit_params)
         end
     end
@@ -804,12 +784,6 @@ defmodule Watusi.Encoder.Instructions do
     Enum.find_index(ctx.types, &match?([{:keyword, "type"}, {:id, ^id} | _], &1)) ||
       raise("Type not found: $#{id}")
   end
-
-  defp resolve_block_params([], fallback), do: fallback
-  defp resolve_block_params(params, _fallback), do: params
-
-  defp resolve_block_results([], fallback), do: fallback
-  defp resolve_block_results(results, _fallback), do: results
 
   defp encode_blocktype(params, results, ctx, force_param_sig?) do
     case {params, results} do
@@ -855,6 +829,20 @@ defmodule Watusi.Encoder.Instructions do
     end)
     |> extract_param_and_result_types()
   end
+
+  defp find_leading_type_use(args) do
+    args
+    |> Enum.take_while(fn
+      {:id, _} -> true
+      [{:keyword, k} | _] when is_signature_definition(k) -> true
+      _ -> false
+    end)
+    |> Enum.find_value(&type_use_ref/1)
+  end
+
+  defp type_use_ref([{:keyword, "type"}, {:id, id}]), do: {:id, id}
+  defp type_use_ref([{:keyword, "type"}, {:int, i}]), do: {:int, i}
+  defp type_use_ref(_), do: nil
 
   defp extract_param_and_result_types(args) do
     {params, results} =
@@ -2129,13 +2117,9 @@ defmodule Watusi.Encoder.Instructions do
     else_body =
       case else_clause do
         [{:keyword, "else"} | body] ->
-          else_instrs = collect_instructions(body, ctx, labels)
-
-          # Only emit else instruction if there are instructions in the else body
-          case else_instrs do
-            [] -> []
-            _ -> [{:instr, "else", [], labels} | else_instrs]
-          end
+          # An explicit else clause is always encoded, even when empty,
+          # so that the binary reflects the source structure
+          [{:instr, "else", [], labels} | collect_instructions(body, ctx, labels)]
 
         _ ->
           []
