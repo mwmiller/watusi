@@ -11,6 +11,7 @@ defmodule Watusi.Encoder.Instructions do
   @call_ops ["call", "call_indirect", "return_call", "return_call_indirect"]
   @global_ops ["global.get", "global.set"]
   @tag_ops ["throw", "rethrow", "catch", "catch_ref"]
+  @nullable_abstract_refs ["funcref", "externref", "anyref", "eqref", "structref", "arrayref", "i31ref", "exnref"]
   @f32_overflow_midpoint (1 <<< 128) - (1 <<< 103)
   @simd_shapes ["i8x16", "i16x8", "i32x4", "i64x2", "f32x4", "f64x2"]
 
@@ -903,10 +904,10 @@ defmodule Watusi.Encoder.Instructions do
   defp encode_ref_cast_instruction(name, args, ctx, labels) do
     case name do
       "ref.test" ->
-        [<<0xFB, ref_cast_opcode(args, 0x14, 0x15)>>, encode_reftype(List.first(args), ctx)]
+        [<<0xFB, ref_cast_opcode(args, 0x14, 0x15)>>, encode_cast_reftype(List.first(args), ctx)]
 
       "ref.cast" ->
-        [<<0xFB, ref_cast_opcode(args, 0x16, 0x17)>>, encode_reftype(List.first(args), ctx)]
+        [<<0xFB, ref_cast_opcode(args, 0x16, 0x17)>>, encode_cast_reftype(List.first(args), ctx)]
 
       n when n in ["br_on_cast", "br_on_cast_fail"] ->
         encode_br_on_cast(args, ctx, n, labels)
@@ -921,6 +922,7 @@ defmodule Watusi.Encoder.Instructions do
   defp ref_is_nullable?({:keyword, "nullref"}), do: true
   defp ref_is_nullable?({:keyword, "nullfuncref"}), do: true
   defp ref_is_nullable?({:keyword, "nullexternref"}), do: true
+  defp ref_is_nullable?({:keyword, k}) when k in @nullable_abstract_refs, do: true
   defp ref_is_nullable?(_), do: false
 
   defp encode_reftype(reftype, ctx) do
@@ -938,9 +940,26 @@ defmodule Watusi.Encoder.Instructions do
         _ -> {0, []}
       end
 
-    bin = [<<0xFB, op>>, Common.encode_u32(depth), <<0x00>>]
-    bin ++ Enum.flat_map(reftypes, &encode_reftype(&1, ctx))
+    target = List.last(reftypes)
+    source = List.first(reftypes)
+
+    nullability =
+      (if ref_is_nullable?(source), do: 0x01, else: 0) +
+        (if ref_is_nullable?(target), do: 0x02, else: 0)
+
+    bin = [<<0xFB, op, nullability>>, Common.encode_u32(depth)]
+    bin ++ Enum.flat_map(reftypes, &encode_cast_reftype(&1, ctx))
   end
+
+  defp encode_cast_reftype(reftype, ctx) do
+    [Sections.encode_heaptype(cast_heaptype_node(reftype), ctx)]
+  end
+
+  defp cast_heaptype_node([{:keyword, "ref"}, {:keyword, "null"}, h]), do: h
+  defp cast_heaptype_node([{:keyword, "ref"}, h]), do: h
+  defp cast_heaptype_node([{:keyword, "null"}, h]), do: h
+  defp cast_heaptype_node([h]) when is_tuple(h), do: h
+  defp cast_heaptype_node(h) when is_tuple(h), do: h
 
   defp encode_gc_immediates(name, args, ctx) do
     # Some GC/ref instructions carry no type immediate (e.g. any/extern
@@ -1010,7 +1029,7 @@ defmodule Watusi.Encoder.Instructions do
     type_item = Enum.at(ctx.types, type_idx)
 
     case Enum.find(args, fn
-           {:id, id} -> !String.starts_with?(id, "$") or not type_is_id?(id, ctx)
+           {:id, id} -> not type_is_id?(id, ctx)
            _ -> false
          end) do
       {:id, id} ->

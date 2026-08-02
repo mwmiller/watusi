@@ -673,7 +673,15 @@ defmodule Watusi.Encoder.Sections do
   # A WAT struct field like `(field i32 (ref $t))` declares multiple storage
   # entries, each becoming its own encoded field.
   defp field_entries([{:keyword, "field"} | types]) do
-    Enum.map(types, &token_to_field/1)
+    types
+    |> Enum.reject(&match?({:id, _}, &1))
+    |> Enum.map(&token_to_field/1)
+  end
+
+  defp field_entries(field) when is_list(field) do
+    field
+    |> Enum.reject(&match?({:id, _}, &1))
+    |> Enum.map(&token_to_field/1)
   end
 
   defp field_entries(field), do: [token_to_field(field)]
@@ -730,6 +738,16 @@ defmodule Watusi.Encoder.Sections do
       {:keyword, k} -> LEB128.encode_signed(heap_type_opcode(k))
     end
   end
+
+  # Encode a bare heaptype (cast-reftype context, e.g. ref.test/ref.cast/
+  # br_on_cast immediates). Unlike a full valtype, there is no 0x63/0x64
+  # prefix; abstract heap types collapse to their single byte and concrete
+  # types encode as the raw type index.
+  def encode_heaptype({:id, id}, ctx), do: resolve_heap_type_id(id, ctx, false)
+  def encode_heaptype({:int, i}, _ctx), do: LEB128.encode_signed(i)
+  def encode_heaptype({:keyword, k}, _ctx) when k in @reftypes,
+    do: [Instructions.valtype(k)]
+  def encode_heaptype({:keyword, k}, _ctx), do: [Instructions.valtype(abstract_heap_valtype(k))]
 
   defp heap_type_opcode("func"), do: -0x10
   defp heap_type_opcode("extern"), do: -0x11
