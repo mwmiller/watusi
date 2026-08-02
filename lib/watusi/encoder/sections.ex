@@ -1493,6 +1493,16 @@ defmodule Watusi.Encoder.Sections do
           node -> [node]
         end
 
+      [{:keyword, "ref"} | _] ->
+        []
+
+      [{:keyword, "offset"} | _] ->
+        []
+
+      # Generic folded expression element, e.g. (ref.i31 (i32.const 9)).
+      [{:keyword, _} | _] = node ->
+        [node]
+
       _ ->
         []
     end)

@@ -996,6 +996,16 @@ defmodule Watusi.Encoder.Instructions do
       n when n in ["array.new_elem", "array.init_elem"] ->
         [Common.encode_u32(type_idx), Common.encode_u32(resolve_index_arg(args, ctx, "elem"))]
 
+      "array.copy" ->
+        src_idx =
+          case Enum.at(args, 1) do
+            {:id, id} -> resolve_type_id(id, ctx)
+            {:int, i} -> i
+            _ -> 0
+          end
+
+        [Common.encode_u32(type_idx), Common.encode_u32(src_idx)]
+
       _ ->
         [Common.encode_u32(type_idx)]
     end
