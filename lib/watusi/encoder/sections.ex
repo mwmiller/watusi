@@ -554,9 +554,10 @@ defmodule Watusi.Encoder.Sections do
     [encode_valtype(Instructions.valtype(type), ctx), mut]
   end
 
-  defp extract_field_type([[{:keyword, "mut"}, {:keyword, type}] | _]), do: {type, 0x01}
-  defp extract_field_type([{:keyword, type} | _]), do: {type, 0x00}
-  defp extract_field_type({:keyword, type}), do: {type, 0x00}
+defp extract_field_type([[{:keyword, "mut"}, type] | _]), do: {type, 0x01}
+defp extract_field_type([type | _]) when is_list(type), do: {type, 0x00}
+defp extract_field_type([{:keyword, type} | _]), do: {type, 0x00}
+defp extract_field_type({:keyword, type}), do: {type, 0x00}
 
   def encode_valtype({:ref, node}, ctx), do: resolve_heap_type(node, ctx)
   def encode_valtype(type, _ctx) when is_integer(type), do: [type]

@@ -482,9 +482,17 @@ defmodule Watusi.Encoder.Instructions do
     "array.new",
     "array.new_default",
     "array.new_fixed",
+    "array.new_data",
+    "array.new_elem",
     "array.get",
+    "array.get_s",
+    "array.get_u",
     "array.set",
     "array.len",
+    "array.copy",
+    "array.fill",
+    "array.init_data",
+    "array.init_elem",
     "ref.test",
     "ref.cast",
     "br_on_cast",
@@ -963,10 +971,37 @@ defmodule Watusi.Encoder.Instructions do
         field_idx = resolve_field_index(type_idx, args, ctx)
         [Common.encode_u32(type_idx), Common.encode_u32(field_idx)]
 
+      "array.new_fixed" ->
+        [Common.encode_u32(type_idx), Common.encode_u32(resolve_output_count(args))]
+
+      n when n in ["array.new_data", "array.init_data"] ->
+        [Common.encode_u32(type_idx), Common.encode_u32(resolve_index_arg(args, ctx, "data"))]
+
+      n when n in ["array.new_elem", "array.init_elem"] ->
+        [Common.encode_u32(type_idx), Common.encode_u32(resolve_index_arg(args, ctx, "elem"))]
+
       _ ->
         [Common.encode_u32(type_idx)]
     end
   end
+
+  defp resolve_output_count(args) do
+    case Enum.find(args, &match?({:int, _}, &1)) do
+      {:int, i} -> i
+      _ -> 0
+    end
+  end
+
+  defp resolve_index_arg(args, ctx, kind) do
+    case Enum.at(args, 1) do
+      {:id, id} -> resolve_index(id, index_list(kind, ctx), ctx, kind)
+      {:int, i} -> i
+      _ -> 0
+    end
+  end
+
+  defp index_list("data", ctx), do: ctx.data
+  defp index_list("elem", ctx), do: ctx.elems
 
   defp resolve_field_index(type_idx, args, ctx) do
     # Fields can be named or indexed.

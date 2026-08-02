@@ -155,7 +155,7 @@ defmodule Watusi.Encoder do
   defp tokens_contain_bulk_mem?([]), do: false
 
   defp tokens_contain_bulk_mem?([{:keyword, name} | rest]) do
-    case name in ["memory.init", "data.drop"] do
+    case name in ["memory.init", "data.drop", "array.init_data", "array.new_data"] do
       true -> true
       false -> tokens_contain_bulk_mem?(rest)
     end
