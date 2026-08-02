@@ -617,10 +617,26 @@ defmodule Watusi.Encoder.Sections do
   defp encode_sub(sub_rest, ctx), do: encode_sub(sub_rest, ctx, 0x50)
 
   defp encode_sub(sub_rest, ctx, banner) do
-    {supers, composite} = split_supers(sub_rest, [])
-    super_bytes = Enum.map(supers, &encode_super(&1, ctx))
+    {final?, sub_rest} =
+      case sub_rest do
+        [{:keyword, "final"} | tail] -> {true, tail}
+        other -> {false, other}
+      end
 
-    [banner, Common.encode_u32(length(supers)), super_bytes, encode_composite(composite, ctx)]
+    {supers, composite} = split_supers(sub_rest, [])
+
+    cond do
+      final? and supers == [] ->
+        encode_composite(composite, ctx)
+
+      final? ->
+        super_bytes = Enum.map(supers, &encode_super(&1, ctx))
+        [0x4F, Common.encode_u32(length(supers)), super_bytes, encode_composite(composite, ctx)]
+
+      true ->
+        super_bytes = Enum.map(supers, &encode_super(&1, ctx))
+        [banner, Common.encode_u32(length(supers)), super_bytes, encode_composite(composite, ctx)]
+    end
   end
 
   defp split_supers([composite | _], acc) when is_list(composite) and composite != [],
