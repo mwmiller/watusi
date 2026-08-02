@@ -67,6 +67,7 @@ defmodule Watusi.Encoder.Sections do
       elems: [],
       data: [],
       types: [],
+      recs: [],
       starts: []
     }
 
@@ -122,6 +123,20 @@ defmodule Watusi.Encoder.Sections do
       true -> %{acc | imports: [item | acc.imports]}
       false -> Map.update!(acc, Map.fetch!(@section_map, kind), &[item | &1])
     end
+  end
+
+  defp group_item([{:keyword, "rec"} | members] = item, acc) do
+    flat_types = Enum.map(members, fn member -> member end)
+
+    %{
+      acc
+      | types: Enum.reverse(flat_types) ++ acc.types,
+        recs: [item | acc.recs]
+    }
+  end
+
+  defp group_item([{:keyword, "type"} | _] = item, acc) do
+    %{acc | types: [item | acc.types], recs: [item | acc.recs]}
   end
 
   defp group_item([{:keyword, kind} | _] = item, acc) when is_map_key(@section_map, kind) do
@@ -483,6 +498,7 @@ defmodule Watusi.Encoder.Sections do
       [[{:keyword, "func"} | inner] | _] -> extract_raw_signature([{:keyword, "func"} | inner])
       [[{:keyword, "struct"} | inner] | _] -> {:struct, inner}
       [[{:keyword, "array"} | inner] | _] -> {:array, inner}
+      [[{:keyword, "sub"} | _] = sub | _] -> extract_raw_signature(unwrap_sub(sub))
       _ -> {[], []}
     end
   end
@@ -519,6 +535,18 @@ defmodule Watusi.Encoder.Sections do
     {params, results}
   end
 
+  defp unwrap_sub([{:keyword, "sub"} | rest]) do
+    composite = composite_from_sub(rest)
+    [{:keyword, "type"}, composite]
+  end
+
+  defp composite_from_sub(rest) do
+    case Enum.find(rest, &is_list/1) do
+      nil -> [{:keyword, "func"}]
+      composite when is_list(composite) -> composite
+    end
+  end
+
   defp normalize_type({:keyword, t}), do: t
   defp normalize_type([{:keyword, "ref"}, _] = t), do: t
   defp normalize_type([{:keyword, "ref"}, {:keyword, "null"}, _] = t), do: t
@@ -543,6 +571,77 @@ defmodule Watusi.Encoder.Sections do
     ]
   end
 
+  # The Type section is encoded as a vector of RecGroups. Explicit `(rec ...)`
+  # groups are wrapped in the rec marker (0x4E) and count as a single vector
+  # entry even though they contribute multiple type indices.
+  def encode_type_section(signatures, recs, ctx) do
+    declared_groups = Enum.map(recs, &encode_declared_group(&1, ctx))
+    declared_count = Enum.reduce(recs, 0, fn group, acc -> acc + member_count(group) end)
+    _ = declared_count
+
+    remaining = Enum.drop(signatures, declared_count)
+    remaining_iodata = Enum.map(remaining, &encode_signature(&1, ctx))
+
+    entries = declared_groups ++ remaining_iodata
+    entry_count = length(recs) + length(remaining)
+
+    Common.encode_section(1, [Common.encode_u32(entry_count), entries])
+  end
+
+  defp member_count([{:keyword, "rec"} | members]), do: length(members)
+  defp member_count(_), do: 1
+
+  defp encode_declared_group([{:keyword, "rec"} | members], ctx) do
+    [0x4E, Common.encode_u32(length(members)), for(m <- members, do: encode_subtype(m, ctx))]
+  end
+
+  defp encode_declared_group(member, ctx), do: encode_subtype(member, ctx)
+
+  defp encode_subtype([{:keyword, "type"} | rest], ctx) do
+    rest =
+      case rest do
+        [{:id, _} | tail] -> tail
+        other -> other
+      end
+
+    defn = List.first(rest)
+
+    case defn do
+      [{:keyword, "sub"} | sub_rest] -> encode_sub(sub_rest, ctx)
+      [{:keyword, "final"}, {:keyword, "sub"} | sub_rest] -> encode_sub(sub_rest, ctx, 0x4F)
+      _ -> encode_composite(defn, ctx)
+    end
+  end
+
+  defp encode_sub(sub_rest, ctx), do: encode_sub(sub_rest, ctx, 0x50)
+
+  defp encode_sub(sub_rest, ctx, banner) do
+    {supers, composite} = split_supers(sub_rest, [])
+    super_bytes = Enum.map(supers, &encode_super(&1, ctx))
+
+    [banner, Common.encode_u32(length(supers)), super_bytes, encode_composite(composite, ctx)]
+  end
+
+  defp split_supers([composite | _], acc) when is_list(composite) and composite != [],
+    do: {Enum.reverse(acc), composite}
+
+  defp split_supers([composite | []], acc), do: {Enum.reverse(acc), composite}
+  defp split_supers([s | rest], acc), do: split_supers(rest, [s | acc])
+
+  defp encode_super({:id, id}, ctx) do
+    case Enum.find_index(ctx.types, &match?([{:keyword, "type"}, {:id, ^id} | _], &1)) do
+      nil -> Common.encode_u32(0)
+      idx -> Common.encode_u32(idx)
+    end
+  end
+
+  defp encode_super({:int, i}, _ctx), do: Common.encode_u32(i)
+
+  defp encode_composite(composite, ctx) do
+    sig = extract_raw_signature([{:keyword, "type"}, composite])
+    encode_signature(sig, ctx)
+  end
+
   defp encode_field(field, ctx) do
     # A field can be (field i32) or (field (mut i32))
     {type, mut} =
@@ -554,10 +653,10 @@ defmodule Watusi.Encoder.Sections do
     [encode_valtype(Instructions.valtype(type), ctx), mut]
   end
 
-defp extract_field_type([[{:keyword, "mut"}, type] | _]), do: {type, 0x01}
-defp extract_field_type([type | _]) when is_list(type), do: {type, 0x00}
-defp extract_field_type([{:keyword, type} | _]), do: {type, 0x00}
-defp extract_field_type({:keyword, type}), do: {type, 0x00}
+  defp extract_field_type([[{:keyword, "mut"}, type] | _]), do: {type, 0x01}
+  defp extract_field_type([type | _]) when is_list(type), do: {type, 0x00}
+  defp extract_field_type([{:keyword, type} | _]), do: {type, 0x00}
+  defp extract_field_type({:keyword, type}), do: {type, 0x00}
 
   def encode_valtype({:ref, node}, ctx), do: resolve_heap_type(node, ctx)
   def encode_valtype(type, _ctx) when is_integer(type), do: [type]

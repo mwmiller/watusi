@@ -87,10 +87,7 @@ defmodule Watusi.Encoder do
     # Sections must appear in a specific numeric order defined by the WASM spec
     IO.iodata_to_binary([
       header,
-      Common.encode_section(
-        1,
-        Common.encode_vector(signatures, &Sections.encode_signature(&1, ctx))
-      ),
+      Sections.encode_type_section(signatures, sections.recs, ctx),
       Common.encode_section(
         2,
         Sections.encode_import_section(sections.imports, signatures, sections.types)
