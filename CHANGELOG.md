@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-08-03
+
+### Added
+
+- Quoted-string identifiers (`$"..."`) now lex as single identifier tokens, resolving identically to `$name`.
+- Hex float literals with a trailing dot and no `p` exponent (`0x0123456789ABCDEF.`, `0xa0_ff.f141`) are supported.
+- Nan payload lanes in `v128.const f32x4` / `v128.const f64x2` are encoded with their sign and payload bits preserved.
+
+### Changed
+
+- Spec vectors refreshed from a pinned upstream `WebAssembly/spec` commit (`bdd7164`, 2026-07-28) via a rewritten `scripts/extract_spec_tests.exs`. The suite now contains 4,868 vectors (2,162 `ok` / 2,706 `fail`) and all pass with bit-for-bit parity to the pinned `wasm-tools` 1.255.0, with no known failures.
+- v128 load/store natural alignments corrected for `splat`/`extend`/`zero` variants.
+- `v128.const` f32x4/f64x2 lanes and `f32.const`/`f64.const` now round decimal and hex literals through exact rational arithmetic, including overflow-to-max-finite handling.
+- Bare `-0` is lexed as a float literal so negative zero keeps its sign bit (integers have no signed zero).
+- Decimal integer detection requires at least one digit, so annotation atoms such as `--` no longer raise.
+- Identifiers and atoms no longer swallow trailing `;;` line comments.
+- Trailing newlines are normalized on every generated `.wat` vector.
+
 ## [0.6.0] - 2026-08-03
 
 ### Added
@@ -69,7 +87,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Floating-point support.
 - Native Elixir WAT-to-WASM conversion pipeline.
 
-[Unreleased]: https://github.com/mwmiller/watusi/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/mwmiller/watusi/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/mwmiller/watusi/releases/tag/v0.6.1
 [0.6.0]: https://github.com/mwmiller/watusi/releases/tag/v0.6.0
 [0.5.0]: https://github.com/mwmiller/watusi/releases/tag/v0.5.0
 [0.4.0]: https://github.com/mwmiller/watusi/releases/tag/v0.4.0

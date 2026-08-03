@@ -10,7 +10,7 @@ Watusi provides a pure-Elixir pipeline for transforming human-readable WebAssemb
 - **High Performance**: Optimized lexer and encoder with compile-time code generation for maximum speed.
 - **Modern Standards**: Core 1.0 plus Bulk Memory, Fixed-width SIMD, Threads/Atomics, Sign-extension, Non-trapping float-to-int, Exception Handling, Garbage Collection, Reference-Types, and Function-References proposals.
 - **Developer Friendly**: Optional debug names and detailed identifier resolution.
-- **Spec Compliant**: Tested against the official spec vectors (5,000+) with bit-for-bit parity to `wasm-tools`.
+- **Spec Compliant**: Tested against the official spec vectors (4,868) with bit-for-bit parity to `wasm-tools`.
 
 ## Performance
 
@@ -38,7 +38,7 @@ Add `watusi` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:watusi, "~> 0.6.0"}
+    {:watusi, "~> 0.6.1"}
   ]
 end
 ```
@@ -76,7 +76,7 @@ wasm = Watusi.Patcher.patch(template,
 )
 ```
 
-See `doc/patcher.md` for details.
+See `Watusi.Patcher` for details.
 
 ### Debug Names
 
@@ -90,5 +90,5 @@ wasm_with_names = Watusi.to_wasm(wat, debug_names: true)
 
 Watusi is tested against the [bytecodealliance/wasm-tools](https://github.com/bytecodealliance/wasm-tools). The test suite compiles each `.wat` vector with `wasm-tools parse` (stripped with `wasm-tools strip --all`) and verifies bit-for-bit parity with Watusi's output, then validates generated binaries with `wasm-tools validate --features all`.
 
-Over 5,000 official spec vectors are included, covering core instructions and advanced extensions, with the full suite at `5146/5146` passing against the pinned `wasm-tools` reference. See `test/spec_vectors/README.md` for details.
+4,868 official spec vectors are included, covering core instructions and advanced extensions, with the full suite at `4868/4868` passing against the pinned `wasm-tools` reference. See `test/spec_vectors/README.md` for details.
 

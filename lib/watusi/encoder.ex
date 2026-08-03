@@ -90,7 +90,12 @@ defmodule Watusi.Encoder do
       Sections.encode_type_section(signatures, sections.recs, ctx),
       Common.encode_section(
         2,
-        Sections.encode_import_section(sections.imports, signatures, sections.types, sections.recs)
+        Sections.encode_import_section(
+          sections.imports,
+          signatures,
+          sections.types,
+          sections.recs
+        )
       ),
       Common.encode_section(
         3,

@@ -450,11 +450,14 @@ defmodule Watusi.Encoder.Sections do
   defp has_explicit_type?([{:keyword, _kind} | rest]) do
     Enum.any?(rest, &match?([{:keyword, "type"} | _], &1))
   end
+
   defp has_explicit_type?(_), do: false
 
   defp top_level_existing_sigs(recs) do
     Enum.flat_map(recs, fn
-      [{:keyword, "rec"} | _] -> []
+      [{:keyword, "rec"} | _] ->
+        []
+
       type_ent ->
         case extract_raw_signature(type_ent) do
           {p, r} when is_list(p) and is_list(r) -> [extract_raw_signature(type_ent)]
@@ -804,8 +807,10 @@ defmodule Watusi.Encoder.Sections do
   # types encode as the raw type index.
   def encode_heaptype({:id, id}, ctx), do: resolve_heap_type_id(id, ctx, false)
   def encode_heaptype({:int, i}, _ctx), do: LEB128.encode_signed(i)
+
   def encode_heaptype({:keyword, k}, _ctx) when k in @reftypes,
     do: [Instructions.valtype(k)]
+
   def encode_heaptype({:keyword, k}, _ctx), do: [Instructions.valtype(abstract_heap_valtype(k))]
 
   defp heap_type_opcode("func"), do: -0x10

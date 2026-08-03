@@ -176,7 +176,9 @@ defmodule Watusi.Lexer do
   defp decimal_string?(<<c, rest::binary>>) when c in ?0..?9, do: decimal_string_digits?(rest)
   defp decimal_string?(_), do: false
 
-  defp decimal_string_digits?(<<c, rest::binary>>) when c in ?0..?9, do: decimal_string_digits?(rest)
+  defp decimal_string_digits?(<<c, rest::binary>>) when c in ?0..?9,
+    do: decimal_string_digits?(rest)
+
   defp decimal_string_digits?(<<"_", rest::binary>>), do: decimal_string_digits?(rest)
   defp decimal_string_digits?(<<>>), do: true
   defp decimal_string_digits?(_), do: false

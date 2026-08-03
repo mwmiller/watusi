@@ -11,7 +11,16 @@ defmodule Watusi.Encoder.Instructions do
   @call_ops ["call", "call_indirect", "return_call", "return_call_indirect"]
   @global_ops ["global.get", "global.set"]
   @tag_ops ["throw", "rethrow", "catch", "catch_ref"]
-  @nullable_abstract_refs ["funcref", "externref", "anyref", "eqref", "structref", "arrayref", "i31ref", "exnref"]
+  @nullable_abstract_refs [
+    "funcref",
+    "externref",
+    "anyref",
+    "eqref",
+    "structref",
+    "arrayref",
+    "i31ref",
+    "exnref"
+  ]
   @unary_operand_ops ["ref.i31", "any.convert_extern", "extern.convert_any"]
   @f32_overflow_midpoint (1 <<< 128) - (1 <<< 103)
   @f64_overflow_midpoint (1 <<< 1024) - (1 <<< 970)
@@ -942,8 +951,8 @@ defmodule Watusi.Encoder.Instructions do
     source = List.first(reftypes)
 
     nullability =
-      (if ref_is_nullable?(source), do: 0x01, else: 0) +
-        (if ref_is_nullable?(target), do: 0x02, else: 0)
+      if(ref_is_nullable?(source), do: 0x01, else: 0) +
+        if ref_is_nullable?(target), do: 0x02, else: 0
 
     bin = [<<0xFB, op, nullability>>, Common.encode_u32(depth)]
     bin ++ Enum.flat_map(reftypes, &encode_cast_reftype(&1, ctx))
@@ -1522,18 +1531,42 @@ defmodule Watusi.Encoder.Instructions do
 
   defp natural_align_standard(name) do
     cond do
-      String.contains?(name, "load8_splat") -> 0
-      String.contains?(name, "load16_splat") -> 1
-      String.contains?(name, "load32_splat") or String.contains?(name, "load32_zero") -> 2
-      String.contains?(name, "load64_splat") or String.contains?(name, "load64_zero") -> 3
-      String.contains?(name, "load8x8_") or String.contains?(name, "load16x4_") or String.contains?(name, "load32x2_") -> 3
-      String.contains?(name, "v128") -> 4
-      String.contains?(name, "8") -> 0
-      String.contains?(name, "16") -> 1
-      String.contains?(name, "32") -> 2
-      String.contains?(name, "64") -> 3
-      String.contains?(name, "notify") -> 2
-      true -> 0
+      String.contains?(name, "load8_splat") ->
+        0
+
+      String.contains?(name, "load16_splat") ->
+        1
+
+      String.contains?(name, "load32_splat") or String.contains?(name, "load32_zero") ->
+        2
+
+      String.contains?(name, "load64_splat") or String.contains?(name, "load64_zero") ->
+        3
+
+      String.contains?(name, "load8x8_") or String.contains?(name, "load16x4_") or
+          String.contains?(name, "load32x2_") ->
+        3
+
+      String.contains?(name, "v128") ->
+        4
+
+      String.contains?(name, "8") ->
+        0
+
+      String.contains?(name, "16") ->
+        1
+
+      String.contains?(name, "32") ->
+        2
+
+      String.contains?(name, "64") ->
+        3
+
+      String.contains?(name, "notify") ->
+        2
+
+      true ->
+        0
     end
   end
 
@@ -1741,7 +1774,7 @@ defmodule Watusi.Encoder.Instructions do
   end
 
   defp hex_mantissa_rational(sign, mant, exp2) when exp2 >= 0,
-    do: {:ok, {sign * mant <<< exp2, 1}}
+    do: {:ok, {(sign * mant) <<< exp2, 1}}
 
   defp hex_mantissa_rational(sign, mant, exp2), do: {:ok, {sign * mant, 1 <<< -exp2}}
 
@@ -1774,8 +1807,11 @@ defmodule Watusi.Encoder.Instructions do
 
   defp handle_f64_overflow(bits, num, den) do
     case compare_to_f64_midpoint(num, den) do
-      :lt -> if bits == 0x7FF0_0000_0000_0000, do: 0x7FEF_FFFF_FFFF_FFFF, else: 0xFFEF_FFFF_FFFF_FFFF
-      _ -> bits
+      :lt ->
+        if bits == 0x7FF0_0000_0000_0000, do: 0x7FEF_FFFF_FFFF_FFFF, else: 0xFFEF_FFFF_FFFF_FFFF
+
+      _ ->
+        bits
     end
   end
 
@@ -1805,8 +1841,11 @@ defmodule Watusi.Encoder.Instructions do
     end)
   end
 
-  defp compare_to_f32_midpoint(num, den), do: compare_to_midpoint(num, den, @f32_overflow_midpoint)
-  defp compare_to_f64_midpoint(num, den), do: compare_to_midpoint(num, den, @f64_overflow_midpoint)
+  defp compare_to_f32_midpoint(num, den),
+    do: compare_to_midpoint(num, den, @f32_overflow_midpoint)
+
+  defp compare_to_f64_midpoint(num, den),
+    do: compare_to_midpoint(num, den, @f64_overflow_midpoint)
 
   defp compare_to_midpoint(num, den, midpoint) do
     lhs = abs(num)
@@ -1857,10 +1896,13 @@ defmodule Watusi.Encoder.Instructions do
     do: bits >= 0 and bits <= 0xFFFF_FFFF and (bits &&& 0x7F80_0000) != 0x7F80_0000
 
   defp finite_f64_bits?(bits),
-    do: bits >= 0 and bits <= 0xFFFF_FFFF_FFFF_FFFF and (bits &&& 0x7FF0_0000_0000_0000) != 0x7FF0_0000_0000_0000
+    do:
+      bits >= 0 and bits <= 0xFFFF_FFFF_FFFF_FFFF and
+        (bits &&& 0x7FF0_0000_0000_0000) != 0x7FF0_0000_0000_0000
 
   defp float_to_f32_bits(:infinity), do: 0x7F80_0000
   defp float_to_f32_bits(:neg_infinity), do: 0xFF80_0000
+
   defp float_to_f32_bits(value) do
     <<bits::little-32>> = <<value::float-little-size(32)>>
     bits
@@ -1868,6 +1910,7 @@ defmodule Watusi.Encoder.Instructions do
 
   defp float_to_f64_bits(:infinity), do: 0x7FF0_0000_0000_0000
   defp float_to_f64_bits(:neg_infinity), do: 0xFFF0_0000_0000_0000
+
   defp float_to_f64_bits(value) do
     <<bits::little-64>> = <<value::float-little-size(64)>>
     bits
