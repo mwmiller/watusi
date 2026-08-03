@@ -388,14 +388,7 @@ defmodule Watusi.Encoder.Sections do
         case item do
           [{:keyword, "type"} | _] ->
             next = idx + 1
-
-            case extract_raw_signature(item) do
-              {p, r} when is_list(p) and is_list(r) ->
-                {Map.put_new(sig_map, {p, r}, next), next}
-
-              _ ->
-                {sig_map, next}
-            end
+            {record_top_level_signature(sig_map, extract_raw_signature(item), next), next}
 
           [{:keyword, "rec"} | members] ->
             {sig_map, idx + length(members)}
@@ -404,6 +397,11 @@ defmodule Watusi.Encoder.Sections do
 
     Map.get(sig_map, target)
   end
+
+  defp record_top_level_signature(sig_map, {p, r}, next) when is_list(p) and is_list(r),
+    do: Map.put_new(sig_map, {p, r}, next)
+
+  defp record_top_level_signature(sig_map, _other, _next), do: sig_map
 
   def prepare_signatures(sections) do
     # signatures are unique types in the module
@@ -1133,39 +1131,18 @@ defmodule Watusi.Encoder.Sections do
 
   def encode_elem([{:keyword, "elem"} | rest], ctx) do
     # Elements (Table initializers) can be active, passive, or declarative
-    rest =
-      case rest do
-        [{:id, _id} | tail] -> tail
-        other -> other
-      end
-
+    rest = strip_elem_id(rest)
     inline_elem? = Enum.any?(rest, &match?({:inline_elem, true}, &1))
-
     {explicit_table?, table_idx, rest} = resolve_elem_table_idx(rest, ctx)
 
-    # 3. Extract offset if present. It might be explicit '(offset ...)' or a raw instruction.
-    offset_node =
-      Enum.find(rest, fn
-        [{:keyword, "offset"} | _] -> true
-        [{:keyword, name} | _] when is_offset_op(name) -> true
-        _ -> false
-      end)
+    offset_node = find_elem_offset(rest)
 
     # Inline table elements are always active initializers for the table they
     # are attached to, even though the parser does not wrap them in an offset.
-    is_passive =
-      is_nil(offset_node) and not inline_elem?
+    is_passive = is_nil(offset_node) and not inline_elem?
+    is_declarative = Enum.any?(rest, &match?({:keyword, "declare"}, &1)) and not inline_elem?
 
-    is_declarative =
-      Enum.any?(rest, &match?({:keyword, "declare"}, &1)) and not inline_elem?
-
-    reftype_node =
-      Enum.find(rest, fn
-        {:keyword, k} when k in @reftypes -> true
-        [{:keyword, "ref"} | _] -> true
-        _ -> false
-      end)
-
+    reftype_node = find_elem_reftype_node(rest)
     reftype = reftype_node || "funcref"
 
     expr_nodes =
@@ -1176,76 +1153,147 @@ defmodule Watusi.Encoder.Sections do
     {bare_indices, indices, has_expr_payload} =
       resolve_elem_payload(rest, offset_node, expr_nodes, reftype, ctx)
 
-    # The funcidx form (flags 0/1/2/3) is used only when the source does not
-    # force an expression payload: non-inline segments with no reftype written
-    # (bare `func` keyword or omitted), and inline table elements that declare
-    # the abstract funcref type and carry only bare function indices. Every
-    # other combination (an explicit reftype such as `funcref`/`externref`/
-    # `(ref ...)`, or expression elements) uses the expr form (flags 4/5/6/7).
-    non_inline_funcidx? = legacy_func_reftype?(reftype_node)
-
-    inline_funcidx? =
-      is_nil(reftype_node) or match?({:keyword, k} when k in ["funcref", "anyfunc"], reftype_node) or
-        match?([{:keyword, "ref"}, {:keyword, "null"}, {:keyword, "func"}], reftype_node)
-
-    use_expr_form =
-      if inline_elem? do
-        not inline_funcidx? or has_expr_payload
-      else
-        not non_inline_funcidx?
-      end
-
-    # wasm-tools writes the explicit table-index bit (0x02) whenever the
-    # source names the segment's table, including inline table elements and
-    # table zero, and for active expression segments whose reftype is not the
-    # abstract funcref (the MVP implicit-table encoding only supports funcref).
-    # A bare numeric table reference (`(elem 0 ...)`) is also explicit; only
-    # funcref segments with no table clause at all are implicit.
-    explicit_index? =
-      not is_passive and not is_declarative and
-        (explicit_table? or inline_elem? or (use_expr_form and not funcref_reftype?(reftype_node)))
+    {use_expr_form, explicit_index?} =
+      elem_encoding_plan(
+        inline_elem?,
+        is_passive,
+        is_declarative,
+        explicit_table?,
+        has_expr_payload,
+        reftype_node
+      )
 
     # The element type byte is written for passive, declared and explicit-index
     # segments only. The implicit-table funcref forms (flags 0 and 4) write no
     # type byte; flags 4 carries no reftype at all, matching wasm-tools.
     write_type? = is_passive or is_declarative or explicit_index?
 
-    type_byte =
-      if write_type? do
-        if use_expr_form do
-          encode_elem_reftype(reftype, ctx)
-        else
-          [0x00]
-        end
-      else
-        []
-      end
+    type_byte = elem_type_byte(write_type?, use_expr_form, reftype, ctx)
 
     # In the expr form, bare function indices are wrapped as `ref.func` expressions.
     # In the legacy funcidx form, every item -- including a source `ref.func N` --
     # is stored as a bare function index (no opcode).
-    elem_expr_nodes =
-      if use_expr_form do
-        expr_nodes ++
-          Enum.map(bare_indices, fn idx -> [{:keyword, "ref.func"}, {:int, idx}] end)
-      else
-        []
-      end
-
     encoded_exprs =
-      Common.encode_vector(elem_expr_nodes, fn expr_node ->
-        expr_instrs =
-          [expr_node]
-          |> InstrEncoder.collect_instructions(ctx)
-          |> Enum.map(&InstrEncoder.encode_instruction(&1, ctx))
+      elem_expr_nodes(use_expr_form, expr_nodes, bare_indices)
+      |> encode_elem_exprs(ctx)
 
-        [expr_instrs, 0x0B]
-      end)
-
-    flags =
-      elem_flags(is_passive, is_declarative, explicit_index?, use_expr_form)
+    flags = elem_flags(is_passive, is_declarative, explicit_index?, use_expr_form)
 
     encode_elem_segment(flags, type_byte, encoded_exprs, indices, table_idx, offset_node, ctx)
+  end
+
+  defp strip_elem_id([{:id, _id} | tail]), do: tail
+  defp strip_elem_id(other), do: other
+
+  defp find_elem_offset(rest) do
+    Enum.find(rest, fn
+      [{:keyword, "offset"} | _] -> true
+      [{:keyword, name} | _] when is_offset_op(name) -> true
+      _ -> false
+    end)
+  end
+
+  defp find_elem_reftype_node(rest) do
+    Enum.find(rest, fn
+      {:keyword, k} when k in @reftypes -> true
+      [{:keyword, "ref"} | _] -> true
+      _ -> false
+    end)
+  end
+
+  # An inline table element can use the legacy funcidx form when it declares
+  # the abstract funcref type (or none) and carries only bare function indices.
+  defp elem_uses_funcidx?(nil), do: true
+  defp elem_uses_funcidx?({:keyword, k}) when k in ["funcref", "anyfunc"], do: true
+  defp elem_uses_funcidx?([{:keyword, "ref"}, {:keyword, "null"}, {:keyword, "func"}]), do: true
+  defp elem_uses_funcidx?(_), do: false
+
+  # Decide the two flags that shape the encoding: whether items are stored as
+  # expression payloads (expr form, flags 4/5/6/7) and whether the explicit
+  # table-index bit (0x02) is set. The funcidx form (flags 0/1/2/3) is used only
+  # when the source does not force an expression payload: non-inline segments
+  # with no reftype written (bare `func` keyword or omitted), and inline table
+  # elements that declare the abstract funcref type and carry only bare
+  # function indices. Every other combination (an explicit reftype such as
+  # `funcref`/`externref`/`(ref ...)`, or expression elements) uses the expr
+  # form. wasm-tools sets the explicit table-index bit whenever the source
+  # names the segment's table, including inline table elements and table zero,
+  # and for active expression segments whose reftype is not the abstract
+  # funcref (the MVP implicit-table encoding only supports funcref). A bare
+  # numeric table reference (`(elem 0 ...)`) is also explicit; only funcref
+  # segments with no table clause at all are implicit.
+  defp elem_encoding_plan(
+         inline_elem?,
+         is_passive,
+         is_declarative,
+         explicit_table?,
+         has_expr_payload,
+         reftype_node
+       ) do
+    use_expr_form =
+      if inline_elem? do
+        not elem_uses_funcidx?(reftype_node) or has_expr_payload
+      else
+        not legacy_func_reftype?(reftype_node)
+      end
+
+    explicit_index? =
+      elem_explicit_index?(
+        is_passive,
+        is_declarative,
+        explicit_table?,
+        inline_elem?,
+        use_expr_form,
+        reftype_node
+      )
+
+    {use_expr_form, explicit_index?}
+  end
+
+  defp elem_explicit_index?(
+         true,
+         _is_declarative,
+         _explicit_table?,
+         _inline?,
+         _use_expr,
+         _reftype
+       ),
+       do: false
+
+  defp elem_explicit_index?(_is_passive, true, _explicit_table?, _inline?, _use_expr, _reftype),
+    do: false
+
+  defp elem_explicit_index?(
+         _is_passive,
+         _is_declarative,
+         explicit_table?,
+         inline?,
+         use_expr,
+         reftype
+       ) do
+    explicit_table? or inline? or (use_expr and not funcref_reftype?(reftype))
+  end
+
+  defp elem_type_byte(false, _use_expr, _reftype, _ctx), do: []
+  defp elem_type_byte(true, true, reftype, ctx), do: encode_elem_reftype(reftype, ctx)
+  defp elem_type_byte(true, false, _reftype, _ctx), do: [0x00]
+
+  defp elem_expr_nodes(true, expr_nodes, bare_indices) do
+    expr_nodes ++
+      Enum.map(bare_indices, fn idx -> [{:keyword, "ref.func"}, {:int, idx}] end)
+  end
+
+  defp elem_expr_nodes(false, _expr_nodes, _bare_indices), do: []
+
+  defp encode_elem_exprs(elem_expr_nodes, ctx) do
+    Common.encode_vector(elem_expr_nodes, fn expr_node ->
+      expr_instrs =
+        [expr_node]
+        |> InstrEncoder.collect_instructions(ctx)
+        |> Enum.map(&InstrEncoder.encode_instruction(&1, ctx))
+
+      [expr_instrs, 0x0B]
+    end)
   end
 
   # Replicates wabt's ElemSegment::GetFlags: passive=1, declared=3,

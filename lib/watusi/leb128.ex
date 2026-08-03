@@ -8,7 +8,7 @@ defmodule Watusi.LEB128 do
   @doc "Encode unsigned integer as LEB128"
   def encode_unsigned(n) when n >= 0 and n < 128, do: <<n>>
 
-  def encode_unsigned(n) when n >= 0 and n < 16384 do
+  def encode_unsigned(n) when n >= 0 and n < 16_384 do
     <<(n &&& 0x7F) ||| 0x80, n >>> 7>>
   end
 

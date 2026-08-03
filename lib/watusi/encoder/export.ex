@@ -2,6 +2,7 @@ defmodule Watusi.Encoder.Export do
   @moduledoc false
   alias Watusi.Context
   alias Watusi.Encoder.Common
+  alias Watusi.Encoder.Sections
 
   defstruct [:name, :kind, :index]
 
@@ -30,7 +31,7 @@ defmodule Watusi.Encoder.Export do
   end
 
   defp do_collect([{:keyword, "import"} | _] = item, {acc, indices, import_indices}, _counts) do
-    {_mod, _name, kind, _rest} = Watusi.Encoder.Sections.normalize_import(item)
+    {_mod, _name, kind, _rest} = Sections.normalize_import(item)
     kind_atom = String.to_atom(kind)
     idx = Map.fetch!(import_indices, kind_atom)
     shorthands = collect_shorthands(item, kind_atom, idx)

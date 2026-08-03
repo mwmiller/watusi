@@ -979,41 +979,35 @@ defmodule Watusi.Encoder.Instructions do
   end
 
   defp encode_gc_type_immediates(name, args, ctx) do
-    # 1. Resolve type index (always the first immediate for GC instructions)
-    type_idx =
-      case List.first(args) do
-        {:id, id} -> resolve_type_id(id, ctx)
-        {:int, i} -> i
-        _ -> 0
-      end
+    type_idx = resolve_type_index(List.first(args), ctx)
+    type = Common.encode_u32(type_idx)
 
-    # 2. Resolve field index (second immediate for struct.get/set)
     case name do
       n when is_struct_mgmt_op(n) ->
-        field_idx = resolve_field_index(type_idx, args, ctx)
-        [Common.encode_u32(type_idx), Common.encode_u32(field_idx)]
+        [type, Common.encode_u32(resolve_field_index(type_idx, args, ctx))]
 
       "array.new_fixed" ->
-        [Common.encode_u32(type_idx), Common.encode_u32(resolve_output_count(args))]
+        [type, Common.encode_u32(resolve_output_count(args))]
 
       n when n in ["array.new_data", "array.init_data"] ->
-        [Common.encode_u32(type_idx), Common.encode_u32(resolve_index_arg(args, ctx, "data"))]
+        [type, Common.encode_u32(resolve_index_arg(args, ctx, "data"))]
 
       n when n in ["array.new_elem", "array.init_elem"] ->
-        [Common.encode_u32(type_idx), Common.encode_u32(resolve_index_arg(args, ctx, "elem"))]
+        [type, Common.encode_u32(resolve_index_arg(args, ctx, "elem"))]
 
       "array.copy" ->
-        src_idx =
-          case Enum.at(args, 1) do
-            {:id, id} -> resolve_type_id(id, ctx)
-            {:int, i} -> i
-            _ -> 0
-          end
-
-        [Common.encode_u32(type_idx), Common.encode_u32(src_idx)]
+        [type, Common.encode_u32(resolve_type_index(Enum.at(args, 1), ctx))]
 
       _ ->
-        [Common.encode_u32(type_idx)]
+        [type]
+    end
+  end
+
+  defp resolve_type_index(arg, ctx) do
+    case arg do
+      {:id, id} -> resolve_type_id(id, ctx)
+      {:int, i} -> i
+      _ -> 0
     end
   end
 
@@ -1529,44 +1523,43 @@ defmodule Watusi.Encoder.Instructions do
     end
   end
 
+  # First-match tokens whose natural alignment differs from (or must precede)
+  # the generic digit-derived alignment below. Order matters: "load8x8" etc.
+  # must win over "v128", and splat/zero tokens over the generic digit match.
+  @align_overrides [
+    {"load8_splat", 0},
+    {"load16_splat", 1},
+    {"load32_splat", 2},
+    {"load32_zero", 2},
+    {"load64_splat", 3},
+    {"load64_zero", 3},
+    {"load8x8", 3},
+    {"load16x4", 3},
+    {"load32x2", 3},
+    {"v128", 4},
+    {"notify", 2}
+  ]
+
   defp natural_align_standard(name) do
+    case override_align(name) do
+      nil -> generic_align(name)
+      align -> align
+    end
+  end
+
+  defp override_align(name) do
+    Enum.find_value(@align_overrides, fn {token, align} ->
+      if String.contains?(name, token), do: align
+    end)
+  end
+
+  defp generic_align(name) do
     cond do
-      String.contains?(name, "load8_splat") ->
-        0
-
-      String.contains?(name, "load16_splat") ->
-        1
-
-      String.contains?(name, "load32_splat") or String.contains?(name, "load32_zero") ->
-        2
-
-      String.contains?(name, "load64_splat") or String.contains?(name, "load64_zero") ->
-        3
-
-      String.contains?(name, "load8x8_") or String.contains?(name, "load16x4_") or
-          String.contains?(name, "load32x2_") ->
-        3
-
-      String.contains?(name, "v128") ->
-        4
-
-      String.contains?(name, "8") ->
-        0
-
-      String.contains?(name, "16") ->
-        1
-
-      String.contains?(name, "32") ->
-        2
-
-      String.contains?(name, "64") ->
-        3
-
-      String.contains?(name, "notify") ->
-        2
-
-      true ->
-        0
+      String.contains?(name, "8") -> 0
+      String.contains?(name, "16") -> 1
+      String.contains?(name, "32") -> 2
+      String.contains?(name, "64") -> 3
+      true -> 0
     end
   end
 
@@ -1744,34 +1737,40 @@ defmodule Watusi.Encoder.Instructions do
 
   defp parse_hex_rational(literal) do
     cleaned = String.replace(literal, "_", "")
-
-    {sign, rest} =
-      case cleaned do
-        <<"-", tail::binary>> -> {-1, tail}
-        <<"+", tail::binary>> -> {1, tail}
-        _ -> {1, cleaned}
-      end
-
+    {sign, rest} = hex_sign(cleaned)
     <<"0x", rest::binary>> = rest
-
-    {sig, exponent} =
-      case String.split(rest, ~r/[pP]/, parts: 2) do
-        [sig, exp] -> {sig, String.to_integer(exp)}
-        [sig] -> {sig, 0}
-      end
-
-    {whole, frac} =
-      case String.split(sig, ".", parts: 2) do
-        [whole] -> {whole, ""}
-        [whole, frac] -> {whole, frac}
-      end
-
-    digits = if whole == "", do: frac, else: whole <> frac
-    mant = if digits == "", do: 0, else: String.to_integer(digits, 16)
+    {sig, exponent} = hex_exponent(rest)
+    {whole, frac} = hex_fraction(sig)
+    mant = hex_mantissa(hex_digits(whole, frac))
     hex_mantissa_rational(sign, mant, exponent - 4 * byte_size(frac))
   rescue
     _ -> :error
   end
+
+  defp hex_sign(<<"-", tail::binary>>), do: {-1, tail}
+  defp hex_sign(<<"+", tail::binary>>), do: {1, tail}
+  defp hex_sign(cleaned), do: {1, cleaned}
+
+  defp hex_exponent(rest) do
+    case String.split(rest, ~r/[pP]/, parts: 2) do
+      [sig, exp] -> {sig, String.to_integer(exp)}
+      [sig] -> {sig, 0}
+    end
+  end
+
+  defp hex_fraction(sig) do
+    case String.split(sig, ".", parts: 2) do
+      [whole] -> {whole, ""}
+      [whole, frac] -> {whole, frac}
+    end
+  end
+
+  defp hex_digits(whole, ""), do: whole
+  defp hex_digits("", frac), do: frac
+  defp hex_digits(whole, frac), do: whole <> frac
+
+  defp hex_mantissa(""), do: 0
+  defp hex_mantissa(digits), do: String.to_integer(digits, 16)
 
   defp hex_mantissa_rational(sign, mant, exp2) when exp2 >= 0,
     do: {:ok, {(sign * mant) <<< exp2, 1}}

@@ -1,5 +1,6 @@
 defmodule Watusi.Context do
   @moduledoc false
+  alias Watusi.Encoder.Sections
 
   defstruct [
     :funcs,
@@ -84,14 +85,14 @@ defmodule Watusi.Context do
   defp has_id?(_, _), do: false
 
   defp import_matches?(item, id, kind) do
-    case Watusi.Encoder.Sections.normalize_import(item) do
+    case Sections.normalize_import(item) do
       {_, _, ^kind, rest} -> has_id?([{:keyword, kind} | rest], id)
       _ -> false
     end
   end
 
   defp import_kind?(item, kind) do
-    case Watusi.Encoder.Sections.normalize_import(item) do
+    case Sections.normalize_import(item) do
       {_, _, ^kind, _} -> true
       _ -> false
     end
