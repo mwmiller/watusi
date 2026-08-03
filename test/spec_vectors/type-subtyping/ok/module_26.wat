@@ -1,1 +1,9 @@
-(module (rec (type $f11 (sub (func (result (ref func))))) (type $f12 (sub $f11 (func (result (ref $f11)))))) (rec (type $f21 (sub (func (result (ref func))))) (type $f22 (sub $f21 (func (result (ref $f21)))))) (rec (type $g11 (sub $f11 (func (result (ref func))))) (type $g12 (sub $g11 (func (result (ref $g11)))))) (rec (type $g21 (sub $f21 (func (result (ref func))))) (type $g22 (sub $g21 (func (result (ref $g21)))))) (func $g11 (type $g11) (unreachable)) (elem declare func $g11) (func $g12 (type $g12) (unreachable)) (elem declare func $g12) (func (export "run") (result i32 i32 i32 i32 i32 i32 i32 i32) (ref.test (ref $f11) (ref.func $g11)) (ref.test (ref $f21) (ref.func $g11)) (ref.test (ref $f11) (ref.func $g12)) (ref.test (ref $f21) (ref.func $g12)) (ref.test (ref $g11) (ref.func $g11)) (ref.test (ref $g21) (ref.func $g11)) (ref.test (ref $g12) (ref.func $g12)) (ref.test (ref $g22) (ref.func $g12))))
+(module
+  (type $t0 (sub (func (result (ref null func)))))
+  (rec (type $t1 (sub $t0 (func (result (ref null $t1))))))
+  (rec (type $t2 (sub $t1 (func (result (ref null $t2))))))
+
+  (func (export "f0") (type $t0) (ref.null func))
+  (func (export "f1") (type $t1) (ref.null $t1))
+  (func (export "f2") (type $t2) (ref.null $t2))
+)

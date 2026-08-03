@@ -1,1 +1,5 @@
-(module (func (result v128) (i32x4.extmul_high_i16x8_u (i32.const 0) (f32.const 0.0))))
+(module
+    (func $i32x4.extmul_low_i16x8_s-1st-arg-empty (result v128)
+      (i32x4.extmul_low_i16x8_s (v128.const i32x4 0 0 0 0))
+    )
+  )

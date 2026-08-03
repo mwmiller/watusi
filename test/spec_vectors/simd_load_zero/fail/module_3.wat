@@ -1,1 +1,5 @@
-(module (memory 0) (func $v128.load32_zero-arg-empty (result v128) (v128.load32_zero)))
+(module (memory 0)
+    (func $v128.load64_zero-arg-empty (result v128)
+      (v128.load64_zero)
+    )
+  )

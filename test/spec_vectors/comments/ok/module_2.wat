@@ -1,1 +1,3 @@
-(module)
+(module
+  (;comment(;nested(;further;)nested;)comment;)
+)

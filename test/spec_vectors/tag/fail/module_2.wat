@@ -1,1 +1,0 @@
-(module (tag (result i32)))

@@ -1,1 +1,1 @@
-(module (memory 1) (func $load_f64 (f64.load (i32.const 0))))
+(module (memory 1) (func (result f64) (f64.load (f32.const 0))))

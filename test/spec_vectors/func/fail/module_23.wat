@@ -1,1 +1,3 @@
-(module (func $type-param-num-vs-num (param f32) (i32.eqz (local.get 0))))
+(module (func $type-return-last-empty-vs-nums (result i32 i32)
+    (return)
+  ))

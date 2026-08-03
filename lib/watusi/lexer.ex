@@ -44,6 +44,13 @@ defmodule Watusi.Lexer do
     do_tokenize(rest, [{:string, string} | acc])
   end
 
+  # Quoted-string identifiers ($"foo"): lexed as a single id whose content is
+  # the decoded string, so $"foo" and $foo resolve to the same identifier.
+  defp do_tokenize(<<"$\"", rest::binary>>, acc) do
+    {string, rest} = read_string(rest, <<>>)
+    do_tokenize(rest, [{:id, string} | acc])
+  end
+
   # Symbolic identifiers
   defp do_tokenize(<<"$", rest::binary>>, acc) do
     {id, rest} = read_identifier(rest, nil)
@@ -114,6 +121,11 @@ defmodule Watusi.Lexer do
     {<<first::binary, atom_tail::binary>>, remaining}
   end
 
+  # Stop scanning an identifier/atom at a ";;" line comment so atoms like
+  # "nop;; comment" split into the atom and a comment. A lone ";" (allowed in
+  # annotation atoms) is still consumed.
+  defp count_id_chars(<<";;", _rest::binary>>, count), do: count
+
   defp count_id_chars(<<c, rest::binary>>, count) when is_id_char(c),
     do: count_id_chars(rest, count + 1)
 
@@ -138,7 +150,11 @@ defmodule Watusi.Lexer do
   defp determine_numeric_type(atom) do
     # We check for more specific/constrained numeric formats first
     cond do
-      hex_float_string?(atom) -> {:float, parse_hex_float(atom)}
+      # Bare "-0" is a valid float literal (negative zero); integers have no
+      # sign on zero, so keeping it as an int would lose the sign bit. Hex
+      # "-0x0" remains an integer.
+      atom == "-0" -> {:float, -0.0, "-0"}
+      hex_float_string?(atom) -> {:float, parse_hex_float(atom), atom}
       nan_payload_string?(atom) -> {:float, parse_nan_payload(atom)}
       integer_string?(atom) -> {:int, parse_integer(atom)}
       float_string?(atom) -> {:float, parse_float(atom), atom}
@@ -155,12 +171,15 @@ defmodule Watusi.Lexer do
     end
   end
 
-  defp decimal_string?(<<c, rest::binary>>) when c in ?0..?9, do: decimal_string?(rest)
-  defp decimal_string?(<<"-", rest::binary>>), do: decimal_string?(rest)
-  defp decimal_string?(<<"+", rest::binary>>), do: decimal_string?(rest)
-  defp decimal_string?(<<"_", rest::binary>>), do: decimal_string?(rest)
-  defp decimal_string?(<<>>), do: true
+  defp decimal_string?(<<"-", rest::binary>>) when rest != "", do: decimal_string_digits?(rest)
+  defp decimal_string?(<<"+", rest::binary>>) when rest != "", do: decimal_string_digits?(rest)
+  defp decimal_string?(<<c, rest::binary>>) when c in ?0..?9, do: decimal_string_digits?(rest)
   defp decimal_string?(_), do: false
+
+  defp decimal_string_digits?(<<c, rest::binary>>) when c in ?0..?9, do: decimal_string_digits?(rest)
+  defp decimal_string_digits?(<<"_", rest::binary>>), do: decimal_string_digits?(rest)
+  defp decimal_string_digits?(<<>>), do: true
+  defp decimal_string_digits?(_), do: false
 
   defp hex_string?(""), do: false
   defp hex_string?(s), do: do_hex_string?(s)
@@ -277,7 +296,6 @@ defmodule Watusi.Lexer do
   defp hex_float_body?(<<".", rest::binary>>), do: hex_float_after_dot?(rest)
   defp hex_float_body?(<<"p", rest::binary>>), do: hex_float_exp?(rest)
   defp hex_float_body?(<<"P", rest::binary>>), do: hex_float_exp?(rest)
-  defp hex_float_body?(<<>>), do: true
   defp hex_float_body?(_), do: false
 
   defp hex_float_after_dot?(<<c, rest::binary>>) when is_hex(c), do: hex_float_after_dot?(rest)

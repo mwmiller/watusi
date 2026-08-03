@@ -1,1 +1,1 @@
-(module (global i32 (global.get 0)))
+(module (global (import "test" "global-mut-i32") (mut i32)) (global i32 (global.get 0)))

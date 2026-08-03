@@ -1,1 +1,1 @@
-(module (import "test" "func-i32" (func (param f32))))
+(module (table 10 funcref))

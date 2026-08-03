@@ -1,1 +1,4 @@
-(module (func (export "testfn") (memory.fill (i32.const 10) (i32.const 20) (i32.const 30))))
+(module
+    (memory 1 1)
+    (func (export "testfn")
+      (memory.fill (i32.const 10) (i64.const 20) (i32.const 30))))

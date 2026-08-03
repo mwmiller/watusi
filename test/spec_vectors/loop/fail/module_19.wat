@@ -1,1 +1,3 @@
-(module (func $type-value-empty-vs-num (result i32) (loop (result i32))))
+(module (func $type-param-void-vs-num
+    (loop (param i32) (drop))
+  ))

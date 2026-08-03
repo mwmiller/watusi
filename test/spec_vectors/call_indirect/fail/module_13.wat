@@ -1,1 +1,10 @@
-(module (type (func)) (func $no-table (call_indirect (type 0) (i32.const 0))))
+(module
+    (func $f (param i32))
+    (type $sig (func (param i32)))
+    (table funcref (elem $f))
+    (func $type-first-empty-in-block
+      (block
+        (call_indirect (type $sig) (i32.const 0))
+      )
+    )
+  )

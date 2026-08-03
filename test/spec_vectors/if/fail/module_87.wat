@@ -1,1 +1,3 @@
-(module (func $type-condition-empty-in-select (select (if (then)) (i32.const 1) (i32.const 2)) (drop)))
+(module (func $type-param-num-vs-nums
+    (f32.const 0) (if (param f32 i32) (i32.const 1) (then (drop) (drop)))
+  ))

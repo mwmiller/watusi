@@ -1,1 +1,6 @@
-(module (type $t (func)) (type $t3 (func (result (ref func)))) (elem declare func $f33) (func $f23 (result (ref null $t)) (return_call_ref $t3 (ref.func $f33))) (func $f33 (result (ref func)) (return_call_ref $t3 (ref.func $f33))))
+(module
+    (type $t4 (func (result (ref null func))))
+    (elem declare func $f44)
+    (func $f34 (result (ref func)) (return_call_ref $t4 (ref.func $f44)))
+    (func $f44 (result (ref null func)) (return_call_ref $t4 (ref.func $f44)))
+  )

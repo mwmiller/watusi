@@ -1,1 +1,1 @@
-(module (global i32 (i32.const 0) (nop)))
+(module (global i32 (f32.const 0)))

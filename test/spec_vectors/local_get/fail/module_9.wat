@@ -1,1 +1,1 @@
-(module (func $type-empty-vs-f32 (local f32) (local.get 0)))
+(module (func $type-empty-vs-f64 (local f64) (local.get 0)))

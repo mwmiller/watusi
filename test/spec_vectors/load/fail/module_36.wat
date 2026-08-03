@@ -1,1 +1,6 @@
-(module (memory 1) (func (result i64) (i64.load16_s (f32.const 0))))
+(module
+    (memory 0)
+    (func $type-address-empty-in-return
+      (return (i32.load)) (drop)
+    )
+  )

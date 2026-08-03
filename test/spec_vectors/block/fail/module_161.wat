@@ -1,1 +1,0 @@
-(module (func $type-param-num-vs-num (f32.const 0) (block (param i32) (drop))))

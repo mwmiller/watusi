@@ -1,1 +1,5 @@
-(module (func $i32x4.gt_s-arg-empty (result v128) (i32x4.gt_s)))
+(module
+    (func $i32x4.gt_u-arg-empty (result v128)
+      (i32x4.gt_u)
+    )
+  )

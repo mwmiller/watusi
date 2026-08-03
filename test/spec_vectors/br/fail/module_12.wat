@@ -1,1 +1,9 @@
-(module (func $type-arg-empty-in-local.set (local i32) (block (result i32) (local.set 0 (br 0)) (local.get 0)) (i32.eqz) (drop)))
+(module
+    (func $type-arg-empty-in-local.tee
+      (local i32)
+      (block (result i32)
+        (local.tee 0 (br 0))
+      )
+      (i32.eqz) (drop)
+    )
+  )

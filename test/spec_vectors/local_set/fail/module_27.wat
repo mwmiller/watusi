@@ -1,1 +1,1 @@
-(module (func $type-empty-vs-f64 (param f64) (result f64) (local.set 0 (f64.const 1))))
+(module (func $unbound-local (local i32 i64) (local.set 3 (i32.const 0))))

@@ -1,1 +1,3 @@
-(module (func $type-empty-i32 (result i32) (if (i32.const 0) (then))))
+(module (func $type-then-value-nums-vs-void
+    (if (i32.const 1) (then (i32.const 1) (i32.const 2)))
+  ))

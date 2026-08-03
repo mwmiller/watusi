@@ -1,1 +1,6 @@
-(module (func $type-first-num-vs-num (return_call 1 (f64.const 1) (i32.const 1))) (func (param i32 f64)))
+(module
+    (func $f (result i32 i32) unreachable)
+    (func (result i32)
+      return_call $f
+    )
+  )

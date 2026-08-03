@@ -1,1 +1,1 @@
-(module (func (result v128) i8x16.splat (f64.const 0.0)))
+(module (func (result v128) i16x8.splat (f32.const 1.0)))

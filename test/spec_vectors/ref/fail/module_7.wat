@@ -1,1 +1,1 @@
-(module (func $func-result-invalid (result (ref 1))))
+(module (func $func-local-invalid (local (ref null 1))))

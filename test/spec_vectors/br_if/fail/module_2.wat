@@ -1,1 +1,1 @@
-(module (func $type-false-i64 (block (i64.ctz (br_if 0 (i32.const 0))))))
+(module (func $type-false-f32 (block (f32.neg (br_if 0 (i32.const 0))))))

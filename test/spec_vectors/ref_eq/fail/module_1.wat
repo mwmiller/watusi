@@ -1,1 +1,5 @@
-(module (func (export "eq") (param $r (ref any)) (result i32) (ref.eq (local.get $r) (local.get $r))))
+(module
+    (func (export "eq") (param $r (ref null any)) (result i32)
+      (ref.eq (local.get $r) (local.get $r))
+    )
+  )

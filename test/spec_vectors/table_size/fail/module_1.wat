@@ -1,1 +1,6 @@
-(module (table $t 1 externref) (func $type-result-i32-vs-empty (table.size $t)))
+(module
+    (table $t 1 externref)
+    (func $type-result-i32-vs-f32 (result f32)
+      (table.size $t)
+    )
+  )

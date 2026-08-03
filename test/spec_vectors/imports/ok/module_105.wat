@@ -1,1 +1,0 @@
-(module (import "test" "global-i32" (table 10 funcref)))

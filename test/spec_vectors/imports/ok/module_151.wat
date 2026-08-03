@@ -1,1 +1,0 @@
-(module (import "test" "func-i32" (memory 1)))

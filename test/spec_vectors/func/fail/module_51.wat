@@ -1,1 +1,3 @@
-(module (func $type-return-first-num-vs-nums (result i32 i32) (return (i32.const 1)) (return (i32.const 1) (i32.const 2))))
+(module (func $type-break-nested-num-vs-nums (result i32 i32)
+    (block (result i32) (br 1 (i32.const 1))) (br 0 (i32.const 1) (i32.const 2))
+  ))

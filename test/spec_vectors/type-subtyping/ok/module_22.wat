@@ -1,1 +1,12 @@
-(module (rec (type $f1 (sub (func))) (type (struct (field (ref $f1))))) (rec (type $f2 (sub (func))) (type (struct (field (ref $f1))))) (rec (type $g1 (sub $f1 (func))) (type (struct))) (rec (type $g2 (sub $f2 (func))) (type (struct))) (func $g (type $g2)) (elem declare func $g) (func (export "run") (result i32) (ref.test (ref $g1) (ref.func $g))))
+(module
+  (rec (type $f11 (sub (func (result (ref func))))) (type $f12 (sub $f11 (func (result (ref $f11))))))
+  (rec (type $f21 (sub (func (result (ref func))))) (type $f22 (sub $f21 (func (result (ref $f21))))))
+  (func $f11 (type $f11) (unreachable)) (elem declare func $f11)
+  (func $f12 (type $f12) (unreachable)) (elem declare func $f12)
+  (func (export "run") (result i32 i32 i32 i32)
+    (ref.test (ref $f11) (ref.func $f11))
+    (ref.test (ref $f21) (ref.func $f11))
+    (ref.test (ref $f12) (ref.func $f12))
+    (ref.test (ref $f22) (ref.func $f12))
+  )
+)

@@ -1,1 +1,5 @@
-(module (func $type-binary-2nd-operand-empty-in-return (return (i32.const 0) (i32.add)) (drop)))
+(module
+    (func $type-binary-1st-operand-empty-in-select
+      (select (i32.add) (i32.const 1) (i32.const 2)) (drop)
+    )
+  )

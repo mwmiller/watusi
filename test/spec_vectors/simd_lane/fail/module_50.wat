@@ -1,1 +1,1 @@
-(module (func (result i64) (i64x2.extract_lane 255 (v128.const i64x2 0 0))))
+(module (func (result f64) (f64x2.extract_lane 0 (f64.const 0.0))))

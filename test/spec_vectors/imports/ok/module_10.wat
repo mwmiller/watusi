@@ -1,1 +1,1 @@
-(module (import "test" "func-i32" (func (param i32))))
+(module (import "test" "func-f32" (func (param f32))))

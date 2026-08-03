@@ -1,1 +1,0 @@
-(module (type $t (func)) (global (import "Mref_ex" "g-var-ref") (mut (ref null $t))))

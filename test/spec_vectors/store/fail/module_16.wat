@@ -1,1 +1,7 @@
-(module (memory 1) (func (param i64) (result i64) (i64.store32 (i32.const 0) (i64.const 1))))
+(module
+    (memory 1)
+    (func $type-value-empty-in-then
+      (i32.const 0)
+      (if (then (i32.const 0) (i32.store)))
+    )
+  )

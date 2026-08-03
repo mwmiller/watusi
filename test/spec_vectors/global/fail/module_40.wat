@@ -1,1 +1,0 @@
-(module (global $x (mut i32) (i32.const 0)) (func $type-global.set-value-empty-in-then (i32.const 0) (i32.const 0) (if (then (global.set $x)))))

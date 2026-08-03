@@ -1,1 +1,1 @@
-(module (data (i64.const 0) ""))
+(module (memory i64 0x1_0000_0000_0001))

@@ -1,1 +1,10 @@
-(module (func $type-mixed-arg-num-vs-num (param i64) (local f64 i64) (local.tee 1 (i64.const 0))))
+(module
+    (type $t (func))
+    (func $f (param (ref null $t)))
+    (func
+      (local $x funcref)
+      (ref.null $t)
+      (local.tee $x)  ;; leaves only a funcref on the stack
+      (call $f)
+    )
+  )

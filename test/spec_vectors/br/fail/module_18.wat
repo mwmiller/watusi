@@ -1,1 +1,1 @@
-(module (func $unbound-label (br 1)))
+(module (func $unbound-nested-label (block (block (br 5)))))

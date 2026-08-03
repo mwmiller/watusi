@@ -1,1 +1,3 @@
-(module (func $type-break-operand-empty-vs-nums (result i32) (i32.add (block (br 0)))))
+(module (func $type-break-operand-f32-vs-i32 (result f32)
+    (i32.ctz (block (br 0 (i32.const 9))))
+  ))

@@ -1,1 +1,3 @@
-(module (func (nop)))
+(module
+  (func nop(nop))
+)

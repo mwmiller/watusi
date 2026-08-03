@@ -1,1 +1,1 @@
-(module (func (result i32) (i32.gt_u (i64.const 0) (f32.const 0))))
+(module (func (result i32) (i32.le_s (i64.const 0) (f32.const 0))))

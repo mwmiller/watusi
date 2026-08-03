@@ -1,1 +1,1 @@
-(module (func $type-empty-vs-f64 (local f64) (local.get 0)))
+(module (func $unbound-local (local i32 i64) (local.get 3) drop))

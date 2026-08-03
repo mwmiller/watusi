@@ -1,1 +1,5 @@
-(module (func $i16x8.lt_u-arg-empty (result v128) (i16x8.lt_u)))
+(module
+    (func $i16x8.le_s-arg-empty (result v128)
+      (i16x8.le_s)
+    )
+  )

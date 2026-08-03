@@ -1,1 +1,1 @@
-(module (func $type-mixed-arg-num-vs-num (param i64) (local f64 i64) (local.set 1 (i64.const 0))))
+(module (func $type-empty-vs-i32 (param i32) (result i32) (local.set 0 (i32.const 1))))

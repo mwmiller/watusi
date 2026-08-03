@@ -1,1 +1,1 @@
-(module (func (drop (memory.grow (i32.const 0)))))
+(module (memory 0 0x1_0000_0000))

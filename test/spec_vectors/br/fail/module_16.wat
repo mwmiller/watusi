@@ -1,1 +1,9 @@
-(module (memory 1) (func $type-arg-empty-in-load (block (result i32) (i32.load (br 0))) (i32.eqz) (drop)))
+(module
+    (memory 1)
+    (func $type-arg-empty-in-store
+      (block (result i32)
+        (i32.store (br 0) (i32.const 0))
+      )
+      (i32.eqz) (drop)
+    )
+  )

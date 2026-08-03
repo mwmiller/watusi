@@ -1,1 +1,0 @@
-(module (func (result v128) (i8x16.narrow_i16x8_s (i32.const 0) (i64.const 0))))

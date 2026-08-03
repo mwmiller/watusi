@@ -1,1 +1,5 @@
-(module (func $f32x4.eq-arg-empty (result v128) (f32x4.eq)))
+(module
+    (func $f32x4.gt-arg-empty (result v128)
+      (f32x4.gt)
+    )
+  )

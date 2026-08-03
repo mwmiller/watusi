@@ -1,1 +1,20 @@
-(module (type $s0 (func (param i32))) (type $s1 (func (param i32 (ref $s0)))) (type $s2 (func (param i32 (ref $s0)))) (type $t1 (func (param (ref $s1)))) (type $t2 (func (param (ref $s2)))) (func $s1 (type $s1)) (func $s2 (type $s2)) (func $f1 (type $t1)) (func $f2 (type $t2)) (table funcref (elem $f1 $f2 $s1 $s2)) (func (export "run") (call_indirect (type $t1) (ref.func $s1) (i32.const 0)) (call_indirect (type $t1) (ref.func $s1) (i32.const 1)) (call_indirect (type $t1) (ref.func $s2) (i32.const 0)) (call_indirect (type $t1) (ref.func $s2) (i32.const 1)) (call_indirect (type $t2) (ref.func $s1) (i32.const 0)) (call_indirect (type $t2) (ref.func $s1) (i32.const 1)) (call_indirect (type $t2) (ref.func $s2) (i32.const 0)) (call_indirect (type $t2) (ref.func $s2) (i32.const 1))))
+(module
+  (rec (type $t1 (func (result (ref null $t1)))))
+  (rec (type $t2 (func (result (ref null $t2)))))
+
+  (func $f1 (type $t1) (ref.null $t1))
+  (func $f2 (type $t2) (ref.null $t2))
+  (table funcref (elem $f1 $f2))
+
+  (func (export "run")
+    (block (result (ref null $t1)) (call_indirect (type $t1) (i32.const 0)))
+    (block (result (ref null $t1)) (call_indirect (type $t2) (i32.const 0)))
+    (block (result (ref null $t2)) (call_indirect (type $t1) (i32.const 0)))
+    (block (result (ref null $t2)) (call_indirect (type $t2) (i32.const 0)))
+    (block (result (ref null $t1)) (call_indirect (type $t1) (i32.const 1)))
+    (block (result (ref null $t1)) (call_indirect (type $t2) (i32.const 1)))
+    (block (result (ref null $t2)) (call_indirect (type $t1) (i32.const 1)))
+    (block (result (ref null $t2)) (call_indirect (type $t2) (i32.const 1)))
+    (br 0)
+  )
+)

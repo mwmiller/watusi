@@ -1,1 +1,1 @@
-(module (func (v128.const f64x2 7.211523414631705e29 7.211523414631705e29) drop))
+(module (func (v128.const f64x2 0x0123456789ABCDEFabcdef.p019 0x0123456789ABCDEFabcdef.p019) drop))

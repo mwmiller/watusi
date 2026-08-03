@@ -1,1 +1,1 @@
-(module (func (result f64) (f64.nearest (i64.const 0))))
+(module (func (result f64) (f64.sqrt (i64.const 0))))

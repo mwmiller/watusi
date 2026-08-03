@@ -1,1 +1,0 @@
-(module (func $unbound-func (return_call 1)))

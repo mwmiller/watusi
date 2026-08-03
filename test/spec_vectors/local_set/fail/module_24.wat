@@ -1,1 +1,1 @@
-(module (func $type-empty-vs-i32 (param i32) (result i32) (local.set 0 (i32.const 1))))
+(module (func $type-empty-vs-i64 (param i64) (result i64) (local.set 0 (i64.const 1))))

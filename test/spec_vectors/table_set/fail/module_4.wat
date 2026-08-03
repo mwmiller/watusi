@@ -1,1 +1,6 @@
-(module (table $t 10 externref) (func $type-size-f32-vs-i32 (table.set $t (f32.const 1) (ref.null extern))))
+(module
+    (table $t 10 funcref)
+    (func $type-value-externref-vs-funcref (param $r externref)
+      (table.set $t (i32.const 1) (local.get $r))
+    )
+  )

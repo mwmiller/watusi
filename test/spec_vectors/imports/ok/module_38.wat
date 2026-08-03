@@ -1,1 +1,1 @@
-(module (import "spectest" "global_i32" (func)))
+(module (import "spectest" "table" (table 5 funcref)))

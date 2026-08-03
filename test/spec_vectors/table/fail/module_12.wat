@@ -1,0 +1,1 @@
+(module (type $t (func)) (table 0 (ref $t)))

@@ -1,1 +1,1 @@
-(module (func $unbound-nested-label (block (block (br 5)))))
+(module (func $large-label (br 0x10000001)))

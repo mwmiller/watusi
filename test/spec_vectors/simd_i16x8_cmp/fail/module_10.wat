@@ -1,1 +1,5 @@
-(module (func (result v128) (i16x8.ne (i32.const 0) (f32.const 0))))
+(module
+    (func $i16x8.eq-1st-arg-empty (result v128)
+      (i16x8.eq (v128.const i16x8 0 0 0 0 0 0 0 0))
+    )
+  )

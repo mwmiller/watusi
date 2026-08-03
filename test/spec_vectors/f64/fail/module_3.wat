@@ -1,1 +1,1 @@
-(module (func (result f64) (f64.max (i64.const 0) (f32.const 0))))
+(module (func (result f64) (f64.min (i64.const 0) (f32.const 0))))

@@ -1,1 +1,5 @@
-(module (func $type-break-nested-f64-vs-void (block (result f64) (block (result f64) (br 1 (f64.const 1.0))) (br 0))))
+(module (func $type-break-nested-i32-vs-i64 (result i32)
+    (block (result i32)
+      (block (result i32) (br 1 (i64.const 1))) (br 0 (i32.const 1))
+    )
+  ))

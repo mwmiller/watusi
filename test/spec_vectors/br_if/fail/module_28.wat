@@ -1,1 +1,1 @@
-(module (func $unbound-nested-label (block (block (br_if 5 (i32.const 1))))))
+(module (func $large-label (br_if 0x10000001 (i32.const 1))))

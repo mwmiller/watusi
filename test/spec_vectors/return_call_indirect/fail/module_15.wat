@@ -1,1 +1,4 @@
-(module (type (func (param i32))) (table 0 funcref) (func $arity-0-vs-1 (return_call_indirect (type 0) (i32.const 0))))
+(module
+    (table 0 funcref)
+    (func $large-type (return_call_indirect (type 1012321300) (i32.const 0)))
+  )

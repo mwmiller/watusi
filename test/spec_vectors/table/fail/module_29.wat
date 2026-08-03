@@ -1,1 +1,0 @@
-(module (table 0 (ref func)))

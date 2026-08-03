@@ -1,1 +1,4 @@
-(module (import "spectest" "print" (func)))
+(module
+  (func (nop);;bla
+  )
+)

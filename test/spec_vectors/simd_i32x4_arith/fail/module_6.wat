@@ -1,1 +1,5 @@
-(module (func $i32x4.add-1st-arg-empty (result v128) (i32x4.add (v128.const i32x4 0 0 0 0))))
+(module
+    (func $i32x4.add-arg-empty (result v128)
+      (i32x4.add)
+    )
+  )

@@ -1,1 +1,1 @@
-(module (func (drop (f32.load (i32.const 0)))))
+(module (memory 0 65537))

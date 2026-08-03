@@ -1,1 +1,4 @@
-(module (func $type-first-void-vs-num (call 1 (nop) (i32.const 1))) (func (param i32 i32)))
+(module
+    (func $type-second-void-vs-num (call 1 (i32.const 1) (nop)))
+    (func (param i32 i32))
+  )

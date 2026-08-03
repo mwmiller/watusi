@@ -1,1 +1,7 @@
-(module (memory 1) (func (param f64) (result f64) (f64.store (i32.const 0) (f64.const 1))))
+(module
+    (memory 1)
+    (func $type-address-empty-in-block
+      (i32.const 0) (i32.const 0)
+      (block (i32.store))
+    )
+  )

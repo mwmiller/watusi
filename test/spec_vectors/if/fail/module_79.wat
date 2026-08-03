@@ -1,1 +1,6 @@
-(module (func $type-condition-empty-in-block (i32.const 0) (block (if (then)))))
+(module
+    (func $type-condition-empty-in-local.tee
+      (local i32)
+      (local.tee 0 (if(then))) (drop)
+    )
+  )

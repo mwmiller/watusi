@@ -1,1 +1,1 @@
-(module (func (f64.const -inf) drop))
+(module (func (export "f") (result f32) (f32.const -0x4000.014000001p-64)))

@@ -1,1 +1,6 @@
-(module (func $type-value-empty-vs-num-in-select (result i32) (select (return) (i32.const 1) (i32.const 2))))
+(module
+    (func $type-value-empty-vs-num-in-call (result i32)
+      (call 1 (return))
+    )
+    (func (param i32) (result i32) (local.get 0))
+  )

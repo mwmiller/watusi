@@ -1,1 +1,1 @@
-(module (func $type-2nd-operand-empty-in-then (i32.const 0) (i32.const 0) (if (then (i32.const 0) (select) (drop)))))
+(module (func (select (i32.const 1) (i32.const 1) (i64.const 1)) (drop)))

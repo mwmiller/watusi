@@ -1,1 +1,1 @@
-(module (import "test" "func-i32->i32" (func (param i32) (result i32))))
+(module (import "test" "func-i64->i64" (func (param i64) (result i64))))

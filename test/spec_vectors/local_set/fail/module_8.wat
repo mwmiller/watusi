@@ -1,1 +1,5 @@
-(module (func $type-param-arg-num-vs-num (param f64 i64) (local.set 1 (f64.const 0))))
+(module
+    (func $type-param-arg-empty-vs-num (param i32)
+      (local.set 0)
+    )
+  )

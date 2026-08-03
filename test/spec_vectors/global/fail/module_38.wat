@@ -1,1 +1,4 @@
-(module (global $x (mut i32) (i32.const 0)) (func $type-global.set-value-empty-in-block (i32.const 0) (block (global.set $x))))
+(module 
+    (global $g1 i32 (global.get $g2))
+    (global $g2 i32 (i32.const 0))
+  )

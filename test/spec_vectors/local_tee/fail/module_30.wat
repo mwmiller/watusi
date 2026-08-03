@@ -1,1 +1,6 @@
-(module (memory 0) (func $type-param-arg-empty-vs-num-in-memory.grow (param i32) (memory.grow (local.tee 0)) (drop)))
+(module
+    (memory 0)
+    (func $type-param-arg-empty-vs-num-in-load (param i32)
+      (i32.load (local.tee 0)) (drop)
+    )
+  )

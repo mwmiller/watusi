@@ -1,1 +1,1 @@
-(module (func (f64.const 123456789.01234567) drop))
+(module (func (i64.const -0x8000000000000000) drop))

@@ -1,0 +1,1 @@
+(module (import "" "" (tag (result i32))))

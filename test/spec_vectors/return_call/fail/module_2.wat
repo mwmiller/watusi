@@ -1,1 +1,5 @@
-(module (func $type-num-vs-num (result i32) (return_call 1) (i32.const 0)) (func (result i64) (i64.const 1)))
+(module
+    (type $t (func))
+    (func $type-ref-vs-funcref (result (ref null $t)) (return_call 1))
+    (func (result funcref) (unreachable))
+  )

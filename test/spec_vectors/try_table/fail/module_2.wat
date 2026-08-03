@@ -1,0 +1,1 @@
+(module (tag) (func (try_table (catch_ref 0 0))))

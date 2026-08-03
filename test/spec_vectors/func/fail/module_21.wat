@@ -1,1 +1,3 @@
-(module (type $t (func)) (func $type-local-uninitialized (local $x (ref $t)) (drop (local.get $x))))
+(module (func $type-value-nums-vs-num (result f32)
+    (f32.const 0) (f32.const 0)
+  ))

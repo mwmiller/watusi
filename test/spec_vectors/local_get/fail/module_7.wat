@@ -1,1 +1,1 @@
-(module (func $type-empty-vs-i32 (local i32) (local.get 0)))
+(module (func $type-empty-vs-i64 (local i64) (local.get 0)))

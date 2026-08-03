@@ -1,1 +1,5 @@
-(module (func (result v128) f64x2.splat (f32.const 0.0)))
+(module
+    (func $i16x8.splat-arg-empty (result v128)
+      (i16x8.splat)
+    )
+  )

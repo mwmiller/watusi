@@ -1,1 +1,1 @@
-(module (func (export "f") (result f64) (f64.const -5.357543035931338e300)))
+(module (func (export "f") (result v128) (v128.const f64x2 +0x0.000000000000200000000000p-1022 +0x0.000000000000200000000000p-1022)))

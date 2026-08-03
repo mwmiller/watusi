@@ -1,1 +1,5 @@
-(module (func $i64x2.extend_high_i32x4_s-arg-empty (result v128) (i64x2.extend_high_i32x4_s)))
+(module
+    (func $i64x2.extend_high_i32x4_u-arg-empty (result v128)
+      (i64x2.extend_high_i32x4_u)
+    )
+  )

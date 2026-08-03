@@ -1,1 +1,6 @@
-(module (table $t1 1 externref) (table $t2 1 funcref) (func $type-value-externref-vs-funcref-multi (param $r externref) (table.fill $t2 (i32.const 0) (local.get $r) (i32.const 1))))
+(module
+    (table $t 1 externref)
+    (func $type-result-empty-vs-num (result i32)
+      (table.fill $t (i32.const 0) (ref.null extern) (i32.const 1))
+    )
+  )

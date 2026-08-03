@@ -1,1 +1,5 @@
-(module (func $type-else-break-num-vs-nums (result i32 i32) (if (result i32 i32) (i32.const 1) (then (i32.const 1) (i32.const 1)) (else (br 0 (i64.const 1)) (i32.const 1) (i32.const 1)))))
+(module
+    (func $type-condition-empty-in-select
+      (select (if(then)) (i32.const 1) (i32.const 2)) (drop)
+    )
+  )

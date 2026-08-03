@@ -1,1 +1,6 @@
-(module (func $type-param-arg-empty-vs-num-in-local.tee (param i32) (local.tee 0 (local.tee 0)) (drop)))
+(module
+    (global $x (mut i32) (i32.const 0))
+    (func $type-param-arg-empty-vs-num-in-global.set (param i32)
+      (global.set $x (local.tee 0)) (global.get $x) (drop)
+    )
+  )

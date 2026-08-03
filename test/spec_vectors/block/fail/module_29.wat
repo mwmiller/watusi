@@ -1,1 +1,3 @@
-(module (func $type-value-empty-in-then (i32.const 0) (i32.const 0) (if (then (block (result i32)) (drop)))))
+(module (func $type-value-f32-vs-i32 (result f32)
+    (block (result f32) (i32.const 0))
+  ))

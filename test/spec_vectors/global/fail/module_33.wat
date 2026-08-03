@@ -1,1 +1,7 @@
-(module (func (i32.const 0) (global.set 0)))
+(module
+    (global $x (mut i32) (i32.const 0))
+    (func $type-global.set-value-empty-in-br_table
+      (i32.const 0)
+      (block (br_table 0 (global.set $x)))
+    )
+  )

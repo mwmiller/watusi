@@ -1,1 +1,7 @@
-(module (memory i64 1) (func (result i64) (i64.load32_s (f32.const 0))))
+(module
+    (memory i64 0)
+    (func $type-address-empty-in-call
+      (call 1 (i32.load)) (drop)
+    )
+    (func (param i32) (result i32) (local.get 0))
+  )

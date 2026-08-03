@@ -1,1 +1,1 @@
-(module (memory 1) (func $type-binary-2nd-operand-empty-in-store (i32.store (i32.const 1) (i32.add) (i32.const 0))))
+(module (func (result i32) (i32.add (i64.const 0) (f32.const 0))))

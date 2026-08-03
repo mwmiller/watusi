@@ -1,1 +1,5 @@
-(module (func (result v128) (f64x2.eq (i32.const 0) (f32.const 0.0))))
+(module
+    (func $f64x2.eq-arg-empty (result v128)
+      (f64x2.eq)
+    )
+  )

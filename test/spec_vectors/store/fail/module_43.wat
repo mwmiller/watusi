@@ -1,1 +1,1 @@
-(module (memory 1) (func (i32.store16 (f32.const 0) (i32.const 0))))
+(module (memory 1) (func (i32.store8 (i32.const 0) (f32.const 0))))

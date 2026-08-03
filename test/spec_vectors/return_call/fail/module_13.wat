@@ -1,1 +1,0 @@
-(module (func $large-func (return_call 1012321300)))

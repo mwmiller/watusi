@@ -1,1 +1,6 @@
-(module (func $type-unary-operand-empty-in-br_if (i32.const 0) (block (br_if 0 (i32.eqz) (i32.const 1)) (drop))))
+(module
+    (func $type-unary-operand-empty-in-br_table
+      (i32.const 0)
+      (block (br_table 0 (i32.eqz)) (drop))
+    )
+  )

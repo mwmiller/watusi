@@ -1,1 +1,0 @@
-(module (global (import "Mref_ex" "g-var-funcnull") (mut externref)))

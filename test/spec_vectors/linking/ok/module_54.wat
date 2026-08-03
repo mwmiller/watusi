@@ -1,1 +1,0 @@
-(module (table (import "Mtable_ex" "t-refnull") 1 (ref null func)))

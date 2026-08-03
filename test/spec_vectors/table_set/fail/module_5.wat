@@ -1,1 +1,7 @@
-(module (table $t 10 funcref) (func $type-value-externref-vs-funcref (param $r externref) (table.set $t (i32.const 1) (local.get $r))))
+(module
+    (table $t1 1 externref)
+    (table $t2 1 funcref)
+    (func $type-value-externref-vs-funcref-multi (param $r externref)
+      (table.set $t2 (i32.const 0) (local.get $r))
+    )
+  )

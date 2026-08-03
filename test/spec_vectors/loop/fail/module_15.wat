@@ -1,1 +1,3 @@
-(module (func $type-empty-f32 (result f32) (loop)))
+(module (func $type-value-unreached-select (result i32)
+    (loop (result i64) (select (unreachable) (unreachable) (unreachable)))
+  ))

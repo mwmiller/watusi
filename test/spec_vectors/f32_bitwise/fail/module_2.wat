@@ -1,1 +1,1 @@
-(module (func (result f32) (f32.abs (i64.const 0))))
+(module (func (result f32) (f32.neg (i64.const 0))))

@@ -1,1 +1,6 @@
-(module (func $type-binary-1st-operand-empty-in-local.tee (local i32) (local.tee 0 (i32.add)) (drop)))
+(module
+    (func $type-binary-2nd-operand-empty-in-local.tee
+      (local i32)
+      (local.tee 0 (i32.const 0) (i32.add)) (drop)
+    )
+  )

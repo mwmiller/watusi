@@ -1,1 +1,6 @@
-(module (func $type-else-break-num-vs-num (result i32) (if (result i32) (i32.const 1) (then (i32.const 1)) (else (br 0 (i64.const 1)) (i32.const 1)))))
+(module
+    (func $type-condition-empty-in-br_table
+      (i32.const 0)
+      (block (br_table 0 (if(then))) (drop))
+    )
+  )

@@ -1,1 +1,3 @@
-(module (func $type-value-nums-vs-num (result i32) (block (result i32) (i32.const 1) (i32.const 2))))
+(module (func $type-value-unreached-select-f64-f32 (result f64)
+    (block (result f32) (select (unreachable) (unreachable) (unreachable)))
+  ))

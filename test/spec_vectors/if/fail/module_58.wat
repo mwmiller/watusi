@@ -1,1 +1,6 @@
-(module (func $type-else-value-unreached-select (result i32) (if (result i64) (i32.const 1) (then (i64.const 0)) (else (select (unreachable) (unreachable) (unreachable))))))
+(module (func $type-then-break-void-vs-nums (result i32 i32)
+    (if (result i32 i32) (i32.const 1)
+      (then (br 0 (nop)) (i32.const 1) (i32.const 1))
+      (else (i32.const 1) (i32.const 1))
+    )
+  ))

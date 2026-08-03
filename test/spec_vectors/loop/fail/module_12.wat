@@ -1,1 +1,3 @@
-(module (type $sig (func)) (func (loop (type $sig) (i32.const 0))))
+(module (func $type-value-num-vs-nums (result i32 i32)
+    (loop (result i32 i32) (i32.const 0))
+  ))

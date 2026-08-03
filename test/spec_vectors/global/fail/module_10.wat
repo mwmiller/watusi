@@ -1,1 +1,1 @@
-(module (global i32 (nop)))
+(module (global i32 (;empty instruction sequence;)))

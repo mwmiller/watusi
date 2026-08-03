@@ -1,1 +1,1 @@
-(module (import "test" "global-f32" (global f64)))
+(module (import "test-memory-2-4" "memory-2-4" (memory 2 5)))

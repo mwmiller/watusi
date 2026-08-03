@@ -1,1 +1,1 @@
-(module (export "a" (global 0)) (global i32 (i32.const 0)))
+(module (table (export "a") 0 1 funcref))

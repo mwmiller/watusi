@@ -1,1 +1,1 @@
-(module (type $type-func-result-invalid (func (result (ref 1)))))
+(module (global $global-invalid (ref null 1) (ref.null 1)))

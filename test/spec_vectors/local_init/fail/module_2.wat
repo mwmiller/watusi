@@ -1,1 +1,9 @@
-(module (func $uninit-after-end (param $p (ref extern)) (local $x (ref extern)) (block (local.set $x (local.get $p)) (drop (local.tee $x (local.get $p)))) (drop (local.get $x))))
+(module
+    (func $uninit-in-else (param $p (ref extern))
+      (local $x (ref extern))
+      (if (i32.const 0)
+        (then (local.set $x (local.get $p)))
+	(else (local.get $x))
+      )
+    )
+  )

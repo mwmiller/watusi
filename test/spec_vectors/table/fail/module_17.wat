@@ -1,1 +1,0 @@
-(module (elem (i32.const 0) $f) (func $f))

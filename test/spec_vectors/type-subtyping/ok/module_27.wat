@@ -1,1 +1,12 @@
-(module (rec (type $f11 (sub (func))) (type $f12 (sub $f11 (func)))) (rec (type $f21 (sub (func))) (type $f22 (sub $f11 (func)))) (func $f (type $f21)) (elem declare func $f) (func (export "run") (result i32) (ref.test (ref $f11) (ref.func $f))))
+(module
+  (type $t0 (sub (func (result (ref null func)))))
+  (rec (type $t1 (sub $t0 (func (result (ref null $t1))))))
+  (rec (type $t2 (sub $t1 (func (result (ref null $t2))))))
+
+  (func (import "M" "f0") (type $t0))
+  (func (import "M" "f1") (type $t0))
+  (func (import "M" "f1") (type $t1))
+  (func (import "M" "f2") (type $t0))
+  (func (import "M" "f2") (type $t1))
+  (func (import "M" "f2") (type $t2))
+)

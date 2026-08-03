@@ -1,1 +1,6 @@
-(module (memory 1) (func $type-value-empty-in-br (i32.const 0) (block (br 0 (i32.const 0) (i32.store)))))
+(module
+    (memory 1)
+    (func $type-value-empty-in-select
+      (select (i32.const 0) (i32.store) (i32.const 1) (i32.const 2))
+    )
+  )

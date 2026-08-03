@@ -1,1 +1,1 @@
-(module (func $unbound-func (call 1)))
+(module (func $large-func (call 1012321300)))

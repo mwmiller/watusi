@@ -1,1 +1,3 @@
-(module (func $type-true-f64 (block (f64.neg (br_if 0 (i64.const 1))))))
+(module (func $type-false-arg-void-vs-num (result i32)
+    (block (result i32) (br_if 0 (i32.const 0)) (i32.const 1))
+  ))

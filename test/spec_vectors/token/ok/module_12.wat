@@ -1,1 +1,4 @@
-(module (func;;bla))
+(module
+  (func nop;;bla
+  )
+)

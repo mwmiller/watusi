@@ -1,1 +1,3 @@
-(module (func $type-value-void-vs-nums (result i32 i32) (loop (result i32 i32) (nop))))
+(module (func $type-param-num-vs-nums
+    (f32.const 0) (loop (param f32 i32) (drop) (drop))
+  ))

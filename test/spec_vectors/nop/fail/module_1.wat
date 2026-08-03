@@ -1,1 +1,1 @@
-(module (func $type-i32 (result i32) (nop)))
+(module (func $type-i64 (result i64) (nop)))

@@ -1,1 +1,3 @@
-(module (data "a"))
+(module
+  (data "a" "b")
+)

@@ -1,1 +1,1 @@
-(module (func $loop-result-invalid (drop (loop (result (ref 1)) (unreachable)))))
+(module (func $if-invalid (drop (if (result (ref 1)) (then) (else)))))

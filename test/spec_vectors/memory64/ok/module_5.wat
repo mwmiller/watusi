@@ -1,1 +1,1 @@
-(module (memory i64 0 281474976710656))
+(module (memory i64 0 0x1_0000_0000_0000))

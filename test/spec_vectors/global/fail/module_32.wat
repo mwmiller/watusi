@@ -1,1 +1,7 @@
-(module (import "spectest" "global_i32" (global i32)) (global i32 (i32.const 0)) (func (result i32) (global.get 2)))
+(module
+    (global $x (mut i32) (i32.const 0))
+    (func $type-global.set-value-empty-in-br_if
+      (i32.const 0)
+      (block (br_if 0 (global.set $x)))
+    )
+  )

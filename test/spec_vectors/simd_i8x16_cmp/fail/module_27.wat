@@ -1,1 +1,5 @@
-(module (func $i8x16.gt_u-arg-empty (result v128) (i8x16.gt_u)))
+(module
+    (func $i8x16.ge_s-arg-empty (result v128)
+      (i8x16.ge_s)
+    )
+  )

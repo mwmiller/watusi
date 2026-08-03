@@ -1,1 +1,1 @@
-(module (import "test" "tag" (func)))
+(module (import "spectest" "table" (table 10 funcref)))

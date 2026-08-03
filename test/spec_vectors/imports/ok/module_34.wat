@@ -1,1 +1,1 @@
-(module (import "test" "global-i32" (func (result i32))))
+(module (import "test-table-10-20" "table-10-20" (table 10 25 funcref)))

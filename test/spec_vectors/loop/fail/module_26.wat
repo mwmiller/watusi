@@ -1,1 +1,3 @@
-(module (func $type-value-nums-vs-num (result i32) (loop (result i32) (i32.const 1) (i32.const 2))))
+(module (func $type-param-num-vs-nums
+    (block (f32.const 0) (loop (param f32 i32) (drop) (drop)))
+  ))

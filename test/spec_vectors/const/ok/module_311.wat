@@ -1,1 +1,1 @@
-(module (func (export "f") (result f32) (f32.const -3.503246160812003e-45)))
+(module (func (export "f") (result f64) (f64.const -0x1.0000000000000fffffffffffp+600)))

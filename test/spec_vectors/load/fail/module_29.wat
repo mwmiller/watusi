@@ -1,1 +1,7 @@
-(module (memory 1) (func (result i32) (i32.load8_s (f32.const 0))))
+(module
+    (memory 0)
+    (func $type-address-empty-in-block
+      (i32.const 0)
+      (block (i32.load) (drop))
+    )
+  )

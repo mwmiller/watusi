@@ -1,1 +1,3 @@
-(module (func $type-then-value-nums-vs-void-else (if (i32.const 1) (then (i32.const 1) (i32.const 2)) (else))))
+(module (func $type-else-value-void-vs-num (result i32)
+    (if (result i32) (i32.const 1) (then (i32.const 0)) (else (nop)))
+  ))

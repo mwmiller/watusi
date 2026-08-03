@@ -1,1 +1,6 @@
-(module (func $type-arg-num-vs-num (result i32) (block (result i32) (br 0 (i64.const 1)) (i32.const 1))))
+(module
+    (func $type-arg-empty-in-br
+      (i32.const 0)
+      (block (result i32) (br 0 (br 0))) (i32.eqz) (drop)
+    )
+  )

@@ -1,1 +1,8 @@
-(module (func) (table 1 (ref func) (ref.func 0)) (elem (table 0) (i32.const 0) (ref func) (ref.func 0)))
+(module
+  (table 10 funcref)
+  (elem $e (i32.const 0) func $f)
+  (func $f)
+  (func (export "init")
+    (table.init $e (i32.const 0) (i32.const 0) (i32.const 1))
+  )
+)

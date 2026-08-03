@@ -1,1 +1,1 @@
-(module (type (array (mut (ref null 10)))))
+(module (type (array (ref 1))))

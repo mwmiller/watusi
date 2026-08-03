@@ -1,1 +1,5 @@
-(module (func (result v128) (i32x4.replace_lane 0 (i32.const 0) (i32.const 1))))
+(module
+    (func $f32x4.replace_lane-2nd-arg-empty (result v128)
+      (f32x4.replace_lane 0 (f32.const 1.0))
+    )
+  )

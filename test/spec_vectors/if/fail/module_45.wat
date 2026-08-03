@@ -1,1 +1,7 @@
-(module (func $type-both-value-num-vs-num (result i32) (if (result i32) (i32.const 1) (then (i64.const 1)) (else (i64.const 1)))))
+(module (func $type-then-value-unreached-select (result i32)
+    (if (result i64)
+      (i32.const 0)
+      (then (select (unreachable) (unreachable) (unreachable)))
+      (else (i64.const 0))
+    )
+  ))

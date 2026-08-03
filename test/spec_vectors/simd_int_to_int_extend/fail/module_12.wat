@@ -1,1 +1,5 @@
-(module (func (result v128) (i64x2.extend_low_i32x4_u (i32.const 0))))
+(module
+    (func $i16x8.extend_high_i8x16_s-arg-empty (result v128)
+      (i16x8.extend_high_i8x16_s)
+    )
+  )

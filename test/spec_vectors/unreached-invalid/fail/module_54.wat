@@ -1,1 +1,3 @@
-(module (func $type-loop-value-num-vs-void-after-nested-unreachable (block (loop (block (unreachable)) (i32.const 1)))))
+(module (func $type-loop-value-num-vs-void-after-nested-unreachable
+    (block (loop (block (unreachable)) (i32.const 1)))
+  ))

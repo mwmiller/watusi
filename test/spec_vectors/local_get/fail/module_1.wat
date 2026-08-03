@@ -1,1 +1,1 @@
-(module (func $type-local-num-vs-num (result i64) (local i32) (local.get 0)))
+(module (func $type-local-num-vs-num (result i32) (local f32) (i32.eqz (local.get 0))))

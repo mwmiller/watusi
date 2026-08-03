@@ -1,1 +1,3 @@
-(module (func nop (nop)))
+(module
+  (func $f(nop))
+)

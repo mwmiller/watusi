@@ -1,1 +1,6 @@
-(module (func $type-binary-2nd-operand-empty-in-loop (i32.const 0) (loop (i32.const 0) (i32.add) (drop))))
+(module
+    (func $type-binary-1st-operand-empty-in-if
+      (i32.const 0) (i32.const 0) (i32.const 0)
+      (if (i32.add) (then (drop)))
+    )
+  )

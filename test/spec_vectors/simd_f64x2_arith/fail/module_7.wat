@@ -1,1 +1,5 @@
-(module (func (result v128) (f64x2.div (i64.const 0) (f64.const 0.0))))
+(module
+    (func $f64x2.sqrt-arg-empty (result v128)
+      (f64x2.sqrt)
+    )
+  )

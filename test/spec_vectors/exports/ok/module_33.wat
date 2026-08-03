@@ -1,1 +1,1 @@
-(module $Global (export "e" (global $g)) (global $g i32 (i32.const 42)))
+(module (table 0 1 funcref) (export "a" (table 0)))

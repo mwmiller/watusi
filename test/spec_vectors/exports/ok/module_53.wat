@@ -1,1 +1,1 @@
-(module (table $a 0 funcref) (export "a" (table $a)))
+(module (export "a" (memory 0)) (memory 0 1))

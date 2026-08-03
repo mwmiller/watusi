@@ -1,1 +1,6 @@
-(module (func $type-first-empty-in-loop (loop (call 1))) (func (param i32)))
+(module
+    (func $type-second-empty-in-loop
+      (loop (call 1 (i32.const 0)))
+    )
+    (func (param i32 i32))
+  )

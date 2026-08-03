@@ -1,1 +1,3 @@
-(module (data $l " a"))
+(module
+  (data "" " ")
+)

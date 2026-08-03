@@ -1,1 +1,9 @@
-(module (type $t0 (sub (func (result (ref null func))))) (rec (type $t1 (sub $t0 (func (result (ref null $t1)))))) (rec (type $t2 (sub $t1 (func (result (ref null $t2)))))) (func (import "M" "f0") (type $t1)))
+(module
+  (rec (type $f1 (sub (func))) (type $s1 (sub (struct (field (ref $f1))))))
+  (rec (type $f2 (sub (func))) (type $s2 (sub (struct (field (ref $f2))))))
+  (rec
+    (type $g2 (sub $f2 (func)))
+    (type (sub $s2 (struct (field (ref $f1) (ref $f2) (ref $f1) (ref $f2) (ref $g2)))))
+  )
+  (func (export "g") (type $g2))
+)

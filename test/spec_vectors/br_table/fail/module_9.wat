@@ -1,1 +1,3 @@
-(module (func $type-arg-index-void-vs-i32 (result i32) (block (result i32) (br_table 0 0 (i32.const 0) (nop)) (i32.const 1))))
+(module (func $type-arg-void-vs-num-nested (result i32)
+    (block (result i32) (i32.const 0) (block (br_table 1 (i32.const 0))))
+  ))

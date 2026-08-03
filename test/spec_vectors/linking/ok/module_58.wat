@@ -1,1 +1,0 @@
-(module (table (import "Mtable_ex" "t-funcnull") 1 externref))

@@ -1,1 +1,3 @@
-(module (type $sig (func)) (func (i32.const 1) (if (type $sig) (i32.const 0) (then))))
+(module (func $type-both-value-num-vs-void
+    (if (i32.const 1) (then (i32.const 1)) (else (i32.const 1)))
+  ))

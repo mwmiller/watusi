@@ -1,1 +1,3 @@
-(module (memory 1) (func (param $x v128) (result v128) (v128.load8_lane 16 (i32.const 0) (local.get $x))))
+(module (memory 1)
+          (func (param $x v128) (result v128)
+          (v128.load8_lane align=2 0 (i32.const 0) (local.get $x))))

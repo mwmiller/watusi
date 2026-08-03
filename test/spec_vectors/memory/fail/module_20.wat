@@ -1,1 +1,1 @@
-(module (memory 65537))
+(module (memory (import "M" "m") 0x1_0000_0000 0x1_0000_0000))

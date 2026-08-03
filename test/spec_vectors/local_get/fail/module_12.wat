@@ -1,1 +1,1 @@
-(module (func $large-local (local i32 i64) (local.get 14324343) drop))
+(module (func $unbound-param (param i32 i64) (local.get 2) drop))

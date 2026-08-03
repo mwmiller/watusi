@@ -1,1 +1,1 @@
-(module (data (i32.const 0) "x"))
+(module (memory 4294967295))

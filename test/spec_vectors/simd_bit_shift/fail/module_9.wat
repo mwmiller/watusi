@@ -1,1 +1,1 @@
-(module (func (result v128) (i32x4.shr_s (i32.const 0) (i32.const 0))))
+(module (func (result v128) (i64x2.shl   (i32.const 0) (i32.const 0))))

@@ -1,1 +1,4 @@
-(module (global (import "test" "global-i32") i32) (global i32 (global.get 2)))
+(module
+    (global i32 (i32.const 0))
+    (func (result i32) (global.get 1))
+  )

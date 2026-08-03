@@ -1,1 +1,3 @@
-(module (func $type-empty-f32 (result f32)))
+(module (func $type-return-last-num-vs-nums (result i64 i64)
+    (return (i64.const 0))
+  ))

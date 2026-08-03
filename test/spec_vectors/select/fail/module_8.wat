@@ -1,1 +1,3 @@
-(module (func $type-num-vs-num (drop (select (i32.const 1) (i64.const 1) (i32.const 1)))))
+(module (func $type-num-vs-num
+    (drop (select (i32.const 1) (f64.const 1.0) (i32.const 1)))
+  ))

@@ -1,1 +1,5 @@
-(module (func $i8x16.min_u-arg-empty (result v128) (i8x16.min_u)))
+(module
+    (func $i8x16.abs-arg-empty (result v128)
+      (i8x16.abs)
+    )
+  )

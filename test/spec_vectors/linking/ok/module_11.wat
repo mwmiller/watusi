@@ -1,1 +1,1 @@
-(module (global (import "Mref_ex" "g-const-extern") (ref null func)))
+(module $G1 (global (export "g") i32 (i32.const 5)))

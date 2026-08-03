@@ -1,1 +1,4 @@
-(module (func $f;;bla))
+(module
+  (data "a";;bla
+  )
+)

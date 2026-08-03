@@ -1,1 +1,7 @@
-(module (import "spectest" "global_i32" (global i32)) (global i32 (i32.const 0)) (func (i32.const 0) (global.set 2)))
+(module
+    (global $x (mut i32) (i32.const 0))
+    (func $type-global.set-value-empty-in-call
+      (call 1 (global.set $x))
+    )
+    (func (param i32) (result i32) (local.get 0))
+  )

@@ -1,1 +1,0 @@
-(module (table 1 funcref) (elem (global.get 0)))

@@ -1,1 +1,1 @@
-(module (elem $elem-invalid (ref 1)))
+(module (func $func-param-invalid (param (ref 1))))

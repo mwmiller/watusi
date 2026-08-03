@@ -1,1 +1,1 @@
-(module (func $if-invalid (drop (if (result (ref 1)) (then) (else)))))
+(module (func $select-result-invalid (drop (select (result (ref 1)) (unreachable)))))

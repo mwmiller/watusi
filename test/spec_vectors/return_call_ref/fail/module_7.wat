@@ -1,1 +1,12 @@
-(module (type $t4 (func (result (ref null func)))) (elem declare func $f44) (func $f34 (result (ref func)) (return_call_ref $t4 (ref.func $f44))) (func $f44 (result (ref null func)) (return_call_ref $t4 (ref.func $f44))))
+(module
+    (elem declare func $f)
+    (type $t (func (param i32) (result i32)))
+    (func $f (param i32) (result i32) (local.get 0))
+
+    (func (export "unreachable") (result i32)
+      (unreachable)
+      (ref.func $f)
+      (return_call_ref $t)
+      (i64.const 0)
+    )
+  )

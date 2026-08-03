@@ -1,1 +1,11 @@
-(module (func $host (import "spectest" "print")) (memory (import "Mm" "mem1") 1) (table (import "Mm" "tab") 0 funcref) (data (i32.const 0) "abc"))
+(module $Ms
+  (type $t (func (result i32)))
+  (memory (export "memory") 1)
+  (table (export "table") 1 funcref)
+  (func (export "get memory[0]") (type $t)
+    (i32.load8_u (i32.const 0))
+  )
+  (func (export "get table[0]") (type $t)
+    (call_indirect (type $t) (i32.const 0))
+  )
+)

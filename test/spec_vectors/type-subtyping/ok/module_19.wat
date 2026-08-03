@@ -1,1 +1,10 @@
-(module (type $t1 (sub (func))) (type $t2 (sub $t1 (func))) (type $t3 (sub $t2 (func))) (type $t4 (sub final (func))) (func $f2 (type $t2)) (func $f3 (type $t3)) (table (ref null $t2) (elem $f2 $f3)) (func (export "run") (call_indirect (type $t1) (i32.const 0)) (call_indirect (type $t1) (i32.const 1)) (call_indirect (type $t2) (i32.const 0)) (call_indirect (type $t2) (i32.const 1)) (call_indirect (type $t3) (i32.const 1))) (func (export "fail1") (call_indirect (type $t3) (i32.const 0))) (func (export "fail2") (call_indirect (type $t4) (i32.const 0))))
+(module
+  (rec (type $f1 (sub (func))) (type (struct (field (ref $f1)))))
+  (rec (type $f2 (sub (func))) (type (struct (field (ref $f1)))))
+  (rec (type $g1 (sub $f1 (func))) (type (struct)))
+  (rec (type $g2 (sub $f2 (func))) (type (struct)))
+  (func $g (type $g2)) (elem declare func $g)
+  (func (export "run") (result i32)
+    (ref.test (ref $g1) (ref.func $g))
+  )
+)

@@ -1,1 +1,4 @@
-(module (func (nop)))
+(module
+  (func $f;;bla
+  )
+)

@@ -1,1 +1,5 @@
-(module (memory 0) (func (result v128) (v128.load64_splat (v128.const i32x4 0 0 0 0))))
+(module (memory 0)
+    (func $v128.load16_splat-arg-empty (result v128)
+      (v128.load16_splat)
+    )
+  )

@@ -1,1 +1,1 @@
-(module (import "test-table-10-inf" "table-10-inf" (global i32)))
+(module (import "spectest" "memory" (memory 0 3)))

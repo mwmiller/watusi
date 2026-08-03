@@ -1,1 +1,1 @@
-(module (table 0 4294967295 funcref))
+(module (table 0 0xffff_ffff funcref))

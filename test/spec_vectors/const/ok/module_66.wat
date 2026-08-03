@@ -1,1 +1,1 @@
-(module (func (f64.const 1.2345678901234568e-11) drop))
+(module (func (i32.const 4294967295) drop))

@@ -1,1 +1,0 @@
-(module (memory (import "Mm" "mem") 1) (data (i32.const 0) "abc") (data (i32.const 327670) "zzzzzzzzzzzzzzzzzz"))

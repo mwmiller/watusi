@@ -1,1 +1,3 @@
-(module (func $type-value-void-vs-nums (result i32 i32) (nop)))
+(module (func $type-return-void-vs-num (result i32)
+    (return (nop)) (i32.const 1)
+  ))

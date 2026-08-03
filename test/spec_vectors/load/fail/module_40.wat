@@ -1,1 +1,7 @@
-(module (memory 1) (func (result f32) (f32.load (f32.const 0))))
+(module
+    (memory 0)
+    (func $type-address-empty-in-local.set
+      (local i32)
+      (local.set 0 (i32.load)) (local.get 0) (drop)
+    )
+  )

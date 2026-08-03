@@ -1,1 +1,8 @@
-(module (rec (type $f1 (sub (func))) (type $s1 (sub (struct (field (ref $f1)))))) (rec (type $f2 (sub (func))) (type $s2 (sub (struct (field (ref $f2)))))) (rec (type $g1 (sub $f1 (func))) (type (sub $s1 (struct (field (ref $f1) (ref $f1) (ref $f2) (ref $f2) (ref $g1)))))) (rec (type $g2 (sub $f2 (func))) (type (sub $s2 (struct (field (ref $f1) (ref $f2) (ref $f1) (ref $f2) (ref $g2)))))) (rec (type $h (sub $g2 (func))) (type (struct))) (func $h (type $h)) (elem declare func $h) (func (export "run") (result i32 i32) (ref.test (ref $f1) (ref.func $h)) (ref.test (ref $g1) (ref.func $h))))
+(module
+  (rec (type $f11 (sub (func))) (type $f12 (sub $f11 (func))))
+  (rec (type $f21 (sub (func))) (type $f22 (sub $f11 (func))))
+  (func $f (type $f21)) (elem declare func $f)
+  (func (export "run") (result i32)
+    (ref.test (ref $f11) (ref.func $f))
+  )
+)

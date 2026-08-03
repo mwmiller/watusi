@@ -1,1 +1,3 @@
-(module (func $type-local-num-vs-num (result i64) (local i32) (local.get 0)))
+(module (func $type-value-nums-vs-void
+    (i32.const 0) (i64.const 0)
+  ))

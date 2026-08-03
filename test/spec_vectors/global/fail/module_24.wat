@@ -1,0 +1,4 @@
+(module
+    (import "spectest" "global_i32" (global i32))
+    (func (i32.const 0) (global.set 1))
+  )

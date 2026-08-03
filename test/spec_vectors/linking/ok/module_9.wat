@@ -1,1 +1,12 @@
-(module $Mref_ex (type $t (func)) (func $f) (elem declare func $f) (global (export "g-const-funcnull") (ref null func) (ref.null func)) (global (export "g-const-func") (ref func) (ref.func $f)) (global (export "g-const-refnull") (ref null $t) (ref.null $t)) (global (export "g-const-ref") (ref $t) (ref.func $f)) (global (export "g-const-extern") externref (ref.null extern)) (global (export "g-var-funcnull") (mut (ref null func)) (ref.null func)) (global (export "g-var-func") (mut (ref func)) (ref.func $f)) (global (export "g-var-refnull") (mut (ref null $t)) (ref.null $t)) (global (export "g-var-ref") (mut (ref $t)) (ref.func $f)) (global (export "g-var-extern") (mut externref) (ref.null extern)))
+(module $Ot
+  (type (func (result i32)))
+
+  (func $h (import "Mt" "h") (result i32))
+  (table (import "Mt" "tab") 5 funcref)
+  (elem (i32.const 1) $i $h)
+  (func $i (result i32) (i32.const 6))
+
+  (func (export "call") (param i32) (result i32)
+    (call_indirect (type 0) (local.get 0))
+  )
+)

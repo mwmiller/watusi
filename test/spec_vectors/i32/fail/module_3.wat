@@ -1,1 +1,6 @@
-(module (func $type-unary-operand-empty-in-loop (i32.const 0) (loop (i32.eqz) (drop))))
+(module
+    (func $type-unary-operand-empty-in-if
+      (i32.const 0) (i32.const 0)
+      (if (then (i32.eqz) (drop)))
+    )
+  )

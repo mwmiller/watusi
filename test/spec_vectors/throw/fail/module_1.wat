@@ -1,1 +1,1 @@
-(module (func (throw 0)))
+(module (tag (param i32)) (func (throw 0)))

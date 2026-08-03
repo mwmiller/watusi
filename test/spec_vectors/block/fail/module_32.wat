@@ -1,1 +1,3 @@
-(module (func $type-value-void-vs-f32 (result f32) (block (result f32) (nop))))
+(module (func $type-value-f64-vs-i32 (result f64)
+    (block (result f64) (i32.const 0))
+  ))

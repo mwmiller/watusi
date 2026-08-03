@@ -1,1 +1,3 @@
-(module (func $type-func-value-num-vs-void-after-unreachable (unreachable) (i32.const 1)))
+(module (func $type-func-value-num-vs-void-after-unreachable
+    (unreachable) (i32.const 1)
+  ))

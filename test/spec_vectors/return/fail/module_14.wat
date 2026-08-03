@@ -1,1 +1,6 @@
-(module (func $type-value-empty-vs-num-in-local.tee (result i32) (local i32) (local.tee 0 (return))))
+(module
+    (global $x (mut i32) (i32.const 0))
+    (func $type-value-empty-vs-num-in-global.set (result i32)
+      (global.set $x (return)) (global.get $x)
+    )
+  )

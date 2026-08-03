@@ -1,1 +1,3 @@
-(module (func (export "foo") (result i32) (i32.const 0)))
+(module
+  (func (export "foo") (result i32) (i32.const 0))
+)

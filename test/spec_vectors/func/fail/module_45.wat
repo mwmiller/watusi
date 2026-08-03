@@ -1,1 +1,3 @@
-(module (func $type-return-partial-vs-nums (result i32 i32) (i32.const 1) (return) (i32.const 2)))
+(module (func $type-break-first-num-vs-num (result i32)
+    (br 0 (i64.const 1)) (br 0 (i32.const 1))
+  ))

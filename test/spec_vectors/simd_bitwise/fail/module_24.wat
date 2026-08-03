@@ -1,1 +1,5 @@
-(module (func $v128.xor-arg-empty (result v128) (v128.xor)))
+(module
+    (func $v128.andnot-arg-empty (result v128)
+      (v128.andnot)
+    )
+  )

@@ -1,1 +1,3 @@
-(module (func $type-return-last-empty-vs-num (result i32) (return)))
+(module (func $type-break-last-void-vs-num (result i32)
+    (br 0)
+  ))

@@ -1,1 +1,1 @@
-(module (import "spectest" "unknown" (global i32)))
+(module (import "test-memory-2-inf" "memory-2-inf" (memory 0)))

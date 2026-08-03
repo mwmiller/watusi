@@ -1,1 +1,3 @@
-(module (func $type-value-i32-vs-f64 (result i32) (block (result i32) (f64.const 0.0))))
+(module (func $type-value-nums-vs-num (result i32)
+    (block (result i32) (i32.const 1) (i32.const 2))
+  ))

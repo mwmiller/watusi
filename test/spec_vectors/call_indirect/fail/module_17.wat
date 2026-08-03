@@ -1,1 +1,13 @@
-(module (type (func (param f64 i32))) (table 0 funcref) (func $arity-0-vs-2 (call_indirect (type 0) (i32.const 0))))
+(module
+    (func $f (param i32))
+    (type $sig (func (param i32)))
+    (table funcref (elem $f))
+    (func $type-first-empty-in-then
+      (i32.const 0) (i32.const 0)
+      (if
+        (then
+          (call_indirect (type $sig) (i32.const 0))
+        )
+      )
+    )
+  )

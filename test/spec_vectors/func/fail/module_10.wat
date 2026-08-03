@@ -1,0 +1,1 @@
+(module (func $type-empty-i32 (result i32)))

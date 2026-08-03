@@ -1,1 +1,0 @@
-(module (memory 1) (data (global.get 0)))

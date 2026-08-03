@@ -1,1 +1,1 @@
-(module (import "spectest" "print_i32" (func (param i32))) (export "a" (func 1)))
+(module (export "a" (table 0)))

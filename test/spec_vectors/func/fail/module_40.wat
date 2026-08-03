@@ -1,1 +1,3 @@
-(module (func $type-return-last-void-vs-nums (result i32 i64) (return (nop))))
+(module (func $type-break-last-num-vs-nums (result i32 i32)
+    (br 0 (i32.const 0))
+  ))

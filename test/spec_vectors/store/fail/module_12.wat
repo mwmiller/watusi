@@ -1,1 +1,7 @@
-(module (memory 1) (func (param i32) (result i32) (i32.store8 (i32.const 0) (i32.const 1))))
+(module
+    (memory 1)
+    (func $type-value-empty-in-block
+      (i32.const 0)
+      (block (i32.const 0) (i32.store))
+    )
+  )

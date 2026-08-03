@@ -1,1 +1,5 @@
-(module (func (export "test") (data.drop 0)))
+(module
+    (memory 1)
+    (data "\37")
+    (func (export "test")
+      (memory.init 0 (i32.const 1) (i32.const 1) (f32.const 1))))

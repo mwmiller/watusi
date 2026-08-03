@@ -1,0 +1,1 @@
+(module (global f32 (local.get 0)))

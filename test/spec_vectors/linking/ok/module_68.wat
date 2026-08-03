@@ -1,1 +1,0 @@
-(module (memory (import "Mm" "mem") 1) (data (i32.const 0) "abc") (table 0 funcref) (func) (elem (i32.const 0) 0))

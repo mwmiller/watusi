@@ -1,1 +1,3 @@
-(module (func $type-empty-i32 (result i32) (block)))
+(module (func $type-value-empty-vs-f64 (result f64)
+    (block (result f64))
+  ))

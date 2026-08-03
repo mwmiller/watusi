@@ -1,1 +1,0 @@
-(module (import "test" "unknown" (table 10 funcref)))

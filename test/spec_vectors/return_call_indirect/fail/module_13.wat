@@ -1,1 +1,5 @@
-(module (type (func)) (table 0 funcref) (func $type-void-vs-num (i32.eqz (return_call_indirect (type 0) (i32.const 0)))))
+(module
+    (type (func))
+    (table 10 externref)
+    (func $return-call-indirect (return_call_indirect (type 0) (i32.const 0)))
+  )

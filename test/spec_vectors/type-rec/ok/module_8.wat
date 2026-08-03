@@ -1,1 +1,7 @@
-(module (rec (type $f1 (func)) (type (struct (field (ref $f1))))) (rec (type $f2 (func)) (type (struct (field (ref $f2))))) (rec (type $g1 (func)) (type (struct (field (ref $f1) (ref $f1) (ref $f2) (ref $f2) (ref $g1))))) (rec (type $g2 (func)) (type (struct (field (ref $f1) (ref $f2) (ref $f1) (ref $f2) (ref $g2))))) (func $g (type $g2)) (global (ref $g1) (ref.func $g)))
+(module
+  (rec (type $f1 (func)) (type (struct)))
+  (rec (type (struct)) (type $f2 (func)))
+  (table funcref (elem $f1))
+  (func $f1 (type $f1))
+  (func (export "run") (call_indirect (type $f2) (i32.const 0)))
+)

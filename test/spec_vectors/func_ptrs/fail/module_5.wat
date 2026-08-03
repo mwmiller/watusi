@@ -1,1 +1,1 @@
-(module (table 1 funcref) (elem (nop)))
+(module (func (type 42)))

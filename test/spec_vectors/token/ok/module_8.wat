@@ -1,1 +1,4 @@
-(module (table 1 funcref) (func) (elem (i32.const 0) 0))
+(module
+  (memory 1)
+  (data (i32.const 0)"a")
+)

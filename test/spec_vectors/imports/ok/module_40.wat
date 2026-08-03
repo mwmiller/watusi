@@ -1,1 +1,1 @@
-(module (import "spectest" "memory" (func)))
+(module (import "spectest" "table" (table 10 20 funcref)))

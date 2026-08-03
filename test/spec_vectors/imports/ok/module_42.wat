@@ -1,1 +1,1 @@
-(module (tag (import "test" "tag") (param f32)))
+(module (import "spectest" "table" (table 0 20 funcref)))

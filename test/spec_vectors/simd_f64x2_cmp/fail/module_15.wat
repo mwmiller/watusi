@@ -1,1 +1,5 @@
-(module (func $f64x2.ne-1st-arg-empty (result v128) (f64x2.ne (v128.const f64x2 0 0))))
+(module
+    (func $f64x2.gt-arg-empty (result v128)
+      (f64x2.gt)
+    )
+  )

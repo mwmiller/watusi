@@ -1,1 +1,5 @@
-(module (func (result f64) (f64x2.extract_lane 2 (v128.const f64x2 0 0))))
+(module
+    (func $i16x8.extract_lane_u-2nd-arg-empty (result i32)
+      (i16x8.extract_lane_u 0)
+    )
+  )

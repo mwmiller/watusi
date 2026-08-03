@@ -1,1 +1,7 @@
-(module (memory 1) (func $type-address-empty-in-then (i32.const 0) (i32.const 0) (if (then (i32.store)))))
+(module
+    (memory 1)
+    (func $type-address-empty-in-br_table
+      (i32.const 0) (i32.const 0)
+      (block (br_table 0 (i32.store)))
+    )
+  )

@@ -1,1 +1,6 @@
-(module (func $type-condition-empty-in-then (i32.const 0) (i32.const 0) (if (then (if (then))))))
+(module
+    (memory 0)
+    (func $type-condition-empty-in-memory.grow
+      (memory.grow (if(then))) (drop)
+    )
+  )

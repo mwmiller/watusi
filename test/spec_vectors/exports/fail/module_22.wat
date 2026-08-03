@@ -1,1 +1,1 @@
-(module (func) (memory 0) (export "a" (func 0)) (export "a" (memory 0)))
+(module (table 0 funcref) (func) (export "a" (table 0)) (export "a" (func 0)))

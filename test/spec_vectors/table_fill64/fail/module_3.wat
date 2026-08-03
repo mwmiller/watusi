@@ -1,1 +1,6 @@
-(module (table $t 10 externref) (func $type-value-empty-vs (table.fill $t (i32.const 1) (i32.const 1))))
+(module
+    (table $t 10 externref)
+    (func $type-length-empty-vs-i32
+      (table.fill $t (i32.const 1) (ref.null extern))
+    )
+  )

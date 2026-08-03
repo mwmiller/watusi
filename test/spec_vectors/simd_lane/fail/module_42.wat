@@ -1,1 +1,1 @@
-(module (func (result v128) (i8x16.replace_lane 255 (v128.const i8x16 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0) (i32.const 1))))
+(module (func (result i32) (i8x16.extract_lane_u 0 (f64.const 0.0))))

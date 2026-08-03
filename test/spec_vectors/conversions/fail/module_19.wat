@@ -1,1 +1,1 @@
-(module (func (result f32) (f32.reinterpret_i32 (i64.const 0))))
+(module (func (result f64) (f64.convert_i32_s (i64.const 0))))

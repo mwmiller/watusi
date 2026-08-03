@@ -1,1 +1,7 @@
-(module (table $t 0 externref) (func $type-length-f32-vs-i32 (table.fill $t (i32.const 1) (ref.null extern) (f32.const 1))))
+(module
+    (table $t1 1 externref)
+    (table $t2 1 funcref)
+    (func $type-value-externref-vs-funcref-multi (param $r externref)
+      (table.fill $t2 (i32.const 0) (local.get $r) (i32.const 1))
+    )
+  )

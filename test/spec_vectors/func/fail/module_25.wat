@@ -1,1 +1,3 @@
-(module (func $type-empty-i32 (result i32)))
+(module (func $type-return-last-void-vs-nums (result i32 i64)
+    (return (nop))
+  ))

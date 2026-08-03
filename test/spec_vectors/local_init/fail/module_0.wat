@@ -1,0 +1,1 @@
+(module (func $uninit (local $x (ref extern)) (drop (local.get $x))))

@@ -1,1 +1,0 @@
-(module (import "spectest" "print_i32" (memory 1)))

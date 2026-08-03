@@ -1,1 +1,5 @@
-(module (func $f32x4.mul-arg-empty (result v128) (f32x4.mul)))
+(module
+    (func $f32x4.div-arg-empty (result v128)
+      (f32x4.div)
+    )
+  )

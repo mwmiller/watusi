@@ -1,0 +1,1 @@
+(module (data (i64.const 0) ""))

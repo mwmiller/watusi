@@ -1,1 +1,10 @@
-(module (rec (type $f1 (sub (func))) (type $s1 (sub (struct (field (ref $f1)))))) (rec (type $f2 (sub (func))) (type $s2 (sub (struct (field (ref $f2)))))) (rec (type $g1 (sub $f1 (func))) (type (sub $s1 (struct (field (ref $f1) (ref $f1) (ref $f2) (ref $f2) (ref $g1)))))) (rec (type $g2 (sub $f2 (func))) (type (sub $s2 (struct (field (ref $f1) (ref $f2) (ref $f1) (ref $f2) (ref $g2)))))) (rec (type $h (sub $g2 (func))) (type (struct))) (func $h (type $h)) (global (ref $f1) (ref.func $h)) (global (ref $g1) (ref.func $h)))
+(module
+  (rec (type $f11 (sub (func (result (ref func))))) (type $f12 (sub $f11 (func (result (ref $f11))))))
+  (rec (type $f21 (sub (func (result (ref func))))) (type $f22 (sub $f21 (func (result (ref $f21))))))
+  (func $f11 (type $f11) (unreachable))
+  (func $f12 (type $f12) (unreachable))
+  (global (ref $f11) (ref.func $f11))
+  (global (ref $f21) (ref.func $f11))
+  (global (ref $f12) (ref.func $f12))
+  (global (ref $f22) (ref.func $f12))
+)

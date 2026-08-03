@@ -1,1 +1,4 @@
-(module (global $x (mut i32) (i32.const 0)) (func $type-global.set-value-empty-in-loop (i32.const 0) (loop (global.set $x))))
+(module
+    (global $g funcref (ref.null func))
+    (table $t 10 funcref (global.get $g))
+  )

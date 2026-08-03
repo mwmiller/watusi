@@ -1,1 +1,1 @@
-(module (func (result f32) (f32.convert_i64_u (i32.const 0))))
+(module (func (result f32) (f32.demote_f64 (i32.const 0))))

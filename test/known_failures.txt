@@ -1,6 +1,6 @@
 # Spec-vector tests known to fail on the current toolchain.
 #
 # Currently empty: the full suite (mix test --include known_failure) passes
-# 5146/5146. The harness asserts byte-parity with wasm-tools 1.255.0 even for
+# 4868/4868. The harness asserts byte-parity with wasm-tools 1.255.0 even for
 # fail/ vectors that wasm-tools validates as valid (it is more permissive than
 # the spec suite for some constructs), so no known failures remain.

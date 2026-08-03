@@ -1,1 +1,3 @@
-(module (func $type-unary-num-vs-void-after-return (return) (block (drop (i32.eqz (nop))))))
+(module (func $type-unary-num-vs-void-after-return
+    (return) (block (drop (i32.eqz (nop))))
+  ))

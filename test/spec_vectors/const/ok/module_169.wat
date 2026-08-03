@@ -1,1 +1,1 @@
-(module (func (f64.const nan:1) drop))
+(module (func (export "f") (result f32) (f32.const -0x1.00000200000000000p+50)))

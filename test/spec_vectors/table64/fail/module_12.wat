@@ -1,1 +1,0 @@
-(module (table i64 1 0 funcref))

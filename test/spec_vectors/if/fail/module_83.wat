@@ -1,1 +1,6 @@
-(module (func $type-condition-empty-in-br (i32.const 0) (block (br 0 (if (then))) (drop))))
+(module
+    (memory 1)
+    (func $type-condition-empty-in-store
+      (i32.store (if(then)) (i32.const 1))
+    )
+  )

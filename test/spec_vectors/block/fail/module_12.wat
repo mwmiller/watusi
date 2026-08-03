@@ -1,1 +1,3 @@
-(module (type $sig (func)) (func (block (type $sig) (i32.const 0))))
+(module (func $type-value-empty-vs-f32 (result f32)
+    (block (result f32))
+  ))

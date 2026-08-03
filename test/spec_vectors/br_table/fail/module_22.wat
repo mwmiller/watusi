@@ -1,1 +1,3 @@
-(module (func $unbound-label-default (block (br_table 1 2 (i32.const 1)))))
+(module (func $unbound-nested-label-default
+    (block (block (br_table 0 5 (i32.const 1))))
+  ))

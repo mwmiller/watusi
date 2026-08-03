@@ -1,1 +1,5 @@
-(module (func $arity-2 (result i32 i32) (select (result i32 i32) (i32.const 0) (i32.const 0) (i32.const 0) (i32.const 0) (i32.const 1))))
+(module (type $t (func))
+    (func $type-ref-implicit (param $r (ref $t))
+      (drop (select (local.get $r) (local.get $r) (i32.const 1)))
+    )
+  )

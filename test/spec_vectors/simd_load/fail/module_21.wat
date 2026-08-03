@@ -1,1 +1,0 @@
-(module (memory 1) (func (drop (v128.load))))

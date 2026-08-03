@@ -1,1 +1,1 @@
-(module (memory 1) (func $load8_u_i64 (i64.load8_u (i32.const 0))))
+(module (memory 1) (func (result i64) (i64.load8_u (f32.const 0))))

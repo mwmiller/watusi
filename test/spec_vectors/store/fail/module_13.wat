@@ -1,1 +1,7 @@
-(module (memory 1) (func (param i32) (result i32) (i32.store16 (i32.const 0) (i32.const 1))))
+(module
+    (memory 1)
+    (func $type-address-empty-in-loop
+      (i32.const 0) (i32.const 0)
+      (loop (i32.store))
+    )
+  )

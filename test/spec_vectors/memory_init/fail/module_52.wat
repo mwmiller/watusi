@@ -1,1 +1,5 @@
-(module (memory 1) (data "7") (func (export "test") (memory.init 0 (i64.const 1) (i32.const 1) (i32.const 1))))
+(module
+    (memory 1)
+    (data "\37")
+    (func (export "test")
+      (memory.init 0 (f64.const 1) (i32.const 1) (f32.const 1))))

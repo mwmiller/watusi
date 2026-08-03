@@ -1,0 +1,4 @@
+(module
+    (type $sig (func))
+    (func (block (type $sig) (i32.const 0)))
+  )

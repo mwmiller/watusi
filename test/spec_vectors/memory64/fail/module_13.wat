@@ -1,1 +1,1 @@
-(module (func (f32.store (i64.const 0) (f32.const 0))))
+(module (memory (import "M" "m") i64 0 0x1_0000_0000_0001))

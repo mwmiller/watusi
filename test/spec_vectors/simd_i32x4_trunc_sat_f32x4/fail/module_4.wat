@@ -1,1 +1,0 @@
-(module (func $i32x4.trunc_sat_f32x4_u-arg-empty (result v128) (i32x4.trunc_sat_f32x4_u)))

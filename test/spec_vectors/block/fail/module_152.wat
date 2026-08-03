@@ -1,1 +1,3 @@
-(module (func $type-break-operand-f32-vs-i32 (result f32) (i32.ctz (block (br 0 (i32.const 9))))))
+(module (func $type-param-void-vs-nums
+    (block (block (param i32 f64) (drop) (drop)))
+  ))

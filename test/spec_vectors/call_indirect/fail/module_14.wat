@@ -1,1 +1,10 @@
-(module (type (func)) (table 0 funcref) (func $type-void-vs-num (i32.eqz (call_indirect (type 0) (i32.const 0)))))
+(module
+    (func $f (param i32 i32))
+    (type $sig (func (param i32 i32)))
+    (table funcref (elem $f))
+    (func $type-second-empty-in-block
+      (block
+        (call_indirect (type $sig) (i32.const 0) (i32.const 0))
+      )
+    )
+  )

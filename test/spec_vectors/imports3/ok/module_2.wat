@@ -1,1 +1,0 @@
-(module (import "test" "memory-2-4" (memory 1)) (import "test" "global-i32" (memory 1)))

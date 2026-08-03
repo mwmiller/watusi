@@ -1,1 +1,1 @@
-(module (func (result v128) (i32x4.extend_low_i16x8_u (i32.const 0))))
+(module (func (result v128) (i64x2.extend_high_i32x4_s (i32.const 0))))

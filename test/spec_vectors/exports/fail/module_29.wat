@@ -1,0 +1,1 @@
+(module (memory 0) (func) (export "a" (memory 0)) (export "a" (func 0)))

@@ -1,1 +1,1 @@
-(module (import "test-memory-2-inf" "memory-2-inf" (func)))
+(module (import "test-table-10-20" "table-10-20" (table 0 25 funcref)))

@@ -1,1 +1,3 @@
-(module (func $type-empty-i64 (result i64) (loop)))
+(module (func $type-value-nums-vs-num (result i32)
+    (loop (result i32) (i32.const 1) (i32.const 2))
+  ))

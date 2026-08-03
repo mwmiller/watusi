@@ -1,1 +1,1 @@
-(module (func $f (import "M" "f") (param i32) (result i32)) (func $g (import "M" "g") (param i32) (result i32)) (global funcref (ref.func 7)))
+(module (start $f) (func $f (drop (ref.func $f))))

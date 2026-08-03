@@ -1,1 +1,1 @@
-(module (global i32 (f32.const 0)))
+(module (global (import "" "") externref) (global funcref (global.get 0)))

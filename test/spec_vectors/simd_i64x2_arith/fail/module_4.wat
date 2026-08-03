@@ -1,1 +1,5 @@
-(module (func (result v128) (i64x2.mul (i32.const 0) (f32.const 0.0))))
+(module
+    (func $i64x2.neg-arg-empty (result v128)
+      (i64x2.neg)
+    )
+  )

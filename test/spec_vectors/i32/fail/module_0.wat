@@ -1,0 +1,5 @@
+(module
+    (func $type-unary-operand-empty
+      (i32.eqz) (drop)
+    )
+  )

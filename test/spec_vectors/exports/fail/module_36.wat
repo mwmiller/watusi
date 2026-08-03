@@ -1,1 +1,0 @@
-(module (export "a" (global 0)))

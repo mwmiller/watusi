@@ -1,1 +1,1 @@
-(module (import "test" "global-mut-i64" (global (mut i32))))
+(module (import "spectest" "memory" (memory 1)))

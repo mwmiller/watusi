@@ -1,1 +1,1 @@
-(module (type $type-func-param-invalid (func (param (ref 1)))))
+(module (type $type-func-result-invalid (func (result (ref 1)))))

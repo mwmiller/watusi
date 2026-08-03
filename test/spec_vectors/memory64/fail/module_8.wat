@@ -1,0 +1,1 @@
+(module (func (drop (memory.grow (i64.const 0)))))

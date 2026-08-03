@@ -1,1 +1,4 @@
-(module (func $arity-0-vs-2 (call 1)) (func (param f64 i32)))
+(module
+    (func $arity-1-vs-0 (call 1 (i32.const 1)))
+    (func)
+  )

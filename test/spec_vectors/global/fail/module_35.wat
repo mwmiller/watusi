@@ -1,1 +1,6 @@
-(module (import "spectest" "global_i32" (global i32)) (func (i32.const 0) (global.set 1)))
+(module
+    (global $x (mut i32) (i32.const 0))
+    (func $type-global.set-value-empty-in-select
+      (select (global.set $x) (i32.const 1) (i32.const 2))
+    )
+  )

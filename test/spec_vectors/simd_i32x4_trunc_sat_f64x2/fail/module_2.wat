@@ -1,1 +1,5 @@
-(module (func (result v128) (i32x4.trunc_sat_f64x2_u_zero (i32.const 0))))
+(module
+    (func $i32x4.trunc_sat_f64x2_s_zero-arg-empty (result v128)
+      (i32x4.trunc_sat_f64x2_s_zero)
+    )
+  )

@@ -1,1 +1,5 @@
-(module $Mref_im (type $t (func)) (global (import "Mref_ex" "g-const-funcnull") (ref null func)) (global (import "Mref_ex" "g-const-func") (ref null func)) (global (import "Mref_ex" "g-const-refnull") (ref null func)) (global (import "Mref_ex" "g-const-ref") (ref null func)) (global (import "Mref_ex" "g-const-func") (ref func)) (global (import "Mref_ex" "g-const-ref") (ref func)) (global (import "Mref_ex" "g-const-refnull") (ref null $t)) (global (import "Mref_ex" "g-const-ref") (ref null $t)) (global (import "Mref_ex" "g-const-ref") (ref $t)) (global (import "Mref_ex" "g-const-extern") externref) (global (import "Mref_ex" "g-var-funcnull") (mut (ref null func))) (global (import "Mref_ex" "g-var-func") (mut (ref func))) (global (import "Mref_ex" "g-var-refnull") (mut (ref null $t))) (global (import "Mref_ex" "g-var-ref") (mut (ref $t))) (global (import "Mref_ex" "g-var-extern") (mut externref)))
+(module
+  (table (import "Mt" "tab") 0 funcref)
+  (elem (i32.const 9) $f)
+  (func $f)
+)

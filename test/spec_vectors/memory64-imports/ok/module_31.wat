@@ -1,1 +1,1 @@
-(module (import "test-table64-10-inf" "table64-10-inf" (table 10 funcref)))
+(module (import "test-memory64-2-4" "memory64-2-4" (memory i64 2)))

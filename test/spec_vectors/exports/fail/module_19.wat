@@ -1,1 +1,1 @@
-(module (func) (func) (export "a" (func 0)) (export "a" (func 1)))
+(module  (import "spectest" "table" (table 10 20 funcref)) (export "a" (table 1)))

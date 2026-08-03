@@ -1,1 +1,6 @@
-(module (func $type-empty-f64 (result f64) (block)))
+(module
+    (func $type-value-empty-in-loop
+      (i32.const 0)
+      (loop (block (result i32)) (drop))
+    )
+  )

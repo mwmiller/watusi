@@ -1,1 +1,5 @@
-(module (func (result v128) (i8x16.abs (f32.const 0.0))))
+(module
+    (func $i8x16.max_s-arg-empty (result v128)
+      (i8x16.max_s)
+    )
+  )

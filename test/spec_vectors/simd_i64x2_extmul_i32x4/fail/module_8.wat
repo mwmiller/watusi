@@ -1,1 +1,5 @@
-(module (func $i64x2.extmul_high_i32x4_s-arg-empty (result v128) (i64x2.extmul_high_i32x4_s)))
+(module
+    (func $i64x2.extmul_low_i32x4_u-1st-arg-empty (result v128)
+      (i64x2.extmul_low_i32x4_u (v128.const i64x2 0 0))
+    )
+  )

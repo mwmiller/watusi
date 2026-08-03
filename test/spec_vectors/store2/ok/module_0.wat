@@ -1,1 +1,3 @@
-(module (memory (export "mem") 2))
+(module
+  (memory (export "mem") 2)
+)

@@ -1,1 +1,1 @@
-(module (func (select (i32.const 1) (i32.const 1) (f32.const 1)) (drop)))
+(module (func (result i32) (select (i64.const 1) (i64.const 1) (i32.const 1))))

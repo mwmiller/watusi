@@ -1,1 +1,1 @@
-(module (func (export "f") (result v128) (v128.const f32x4 7.006492321624085e-46 7.006492321624085e-46 7.006492321624085e-46 7.006492321624085e-46)))
+(module (func (export "f") (result v128) (v128.const f64x2 -0x1.0000000000001fffffffffffp+600 -0x1.0000000000001fffffffffffp+600)))

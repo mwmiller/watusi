@@ -1,1 +1,1 @@
-(module (table $table-invalid 10 (ref null 1)))
+(module (elem $elem-invalid (ref 1)))

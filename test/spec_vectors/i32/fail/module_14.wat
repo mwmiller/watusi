@@ -1,1 +1,6 @@
-(module (func $type-unary-operand-empty-in-local.tee (local i32) (local.tee 0 (i32.eqz)) (drop)))
+(module
+    (global $x (mut i32) (i32.const 0))
+    (func $type-unary-operand-empty-in-global.set
+      (global.set $x (i32.eqz)) (global.get $x) (drop)
+    )
+  )

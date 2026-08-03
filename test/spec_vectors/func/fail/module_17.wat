@@ -1,1 +1,3 @@
-(module (func $f (drop (ref.func $g))) (func $g (type 4)) (elem declare func $g))
+(module (func $type-value-num-vs-void
+    (i32.const 0)
+  ))

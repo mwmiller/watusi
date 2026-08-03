@@ -1,1 +1,7 @@
-(module (memory i64 1) (func (result f64) (f64.load (f32.const 0))))
+(module
+    (memory i64 0)
+    (func $type-address-empty-in-local.tee
+      (local i32)
+      (local.tee 0 (i32.load)) (drop)
+    )
+  )

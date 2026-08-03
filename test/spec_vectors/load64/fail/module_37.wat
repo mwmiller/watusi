@@ -1,1 +1,6 @@
-(module (memory i64 1) (func (result i64) (i64.load16_u (f32.const 0))))
+(module
+    (memory i64 0)
+    (func $type-address-empty-in-select
+      (select (i32.load) (i32.const 1) (i32.const 2)) (drop)
+    )
+  )

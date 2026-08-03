@@ -1,1 +1,1 @@
-(module (func (result i32) (i32.clz (i64.const 0))))
+(module (func (result i32) (i32.ctz (i64.const 0))))

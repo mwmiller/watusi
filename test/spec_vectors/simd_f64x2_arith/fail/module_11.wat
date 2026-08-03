@@ -1,1 +1,5 @@
-(module (func $f64x2.add-arg-empty (result v128) (f64x2.add)))
+(module
+    (func $f64x2.sub-arg-empty (result v128)
+      (f64x2.sub)
+    )
+  )

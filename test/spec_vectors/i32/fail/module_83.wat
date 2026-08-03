@@ -1,1 +1,0 @@
-(module (func (result i32) (i32.ne (i64.const 0) (f32.const 0))))

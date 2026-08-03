@@ -1,0 +1,3 @@
+(module (func $type-value-num-vs-void
+    (loop (i32.const 1))
+  ))

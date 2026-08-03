@@ -1,1 +1,1 @@
-(module (func (i32.store8 (i32.const 0) (i32.const 0))))
+(module (memory 0x1_0000_0000))

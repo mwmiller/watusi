@@ -1,1 +1,1 @@
-(module definition (table i64 18446744073709551615 funcref))
+(module definition (table i64 0xffff_ffff_ffff_ffff funcref))

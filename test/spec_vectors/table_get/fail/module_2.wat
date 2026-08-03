@@ -1,1 +1,6 @@
-(module (table $t 10 externref) (func $type-index-f32-vs-i32 (result externref) (table.get $t (f32.const 1))))
+(module
+    (table $t 10 externref)
+    (func $type-result-externref-vs-empty
+      (table.get $t (i32.const 0))
+    )
+  )

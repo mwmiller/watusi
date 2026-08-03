@@ -1,1 +1,0 @@
-(module (memory 0 1) (export "a" (memory 0)))

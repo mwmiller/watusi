@@ -1,1 +1,3 @@
-(module (func $type-arg-void-vs-num-nested (result i32) (block (result i32) (i32.const 0) (block (br 1)))))
+(module (func $type-arg-num-vs-num (result i32)
+    (block (result i32) (br 0 (i64.const 1)) (i32.const 1))
+  ))

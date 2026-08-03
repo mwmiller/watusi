@@ -1,1 +1,1 @@
-(module (func $func-local-invalid (local (ref null 1))))
+(module (func $block-result-invalid (drop (block (result (ref 1)) (unreachable)))))

@@ -1,0 +1,1 @@
+(module (func (drop (f32.load (i64.const 0)))))

@@ -1,1 +1,1 @@
-(module (memory 2147483648))
+(module (memory (import "M" "m") 0 0x1_0000_0000))

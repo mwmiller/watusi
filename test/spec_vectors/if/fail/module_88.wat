@@ -1,1 +1,3 @@
-(module (func $type-condition-empty-in-call (call 1 (if (then))) (drop)) (func (param i32) (result i32) (local.get 0)))
+(module (func $type-param-nested-void-vs-num
+    (block (if (param i32) (i32.const 1) (then (drop))))
+  ))

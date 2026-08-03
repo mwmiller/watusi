@@ -1,1 +1,3 @@
-(module (func $type-loop-value-num-vs-void-after-return (block (loop (return) (i32.const 1)))))
+(module (func $type-loop-value-num-vs-void-after-return
+    (block (loop (return) (i32.const 1)))
+  ))

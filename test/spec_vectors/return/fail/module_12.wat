@@ -1,1 +1,6 @@
-(module (func $f (param i32) (result i32) (local.get 0)) (type $sig (func (param i32) (result i32))) (table funcref (elem $f)) (func $type-value-empty-vs-num-in-call_indirect (result i32) (block (result i32) (call_indirect (type $sig) (return) (i32.const 0)))))
+(module
+    (func $type-value-empty-vs-num-in-local.set (result i32)
+      (local i32)
+      (local.set 0 (return)) (local.get 0)
+    )
+  )

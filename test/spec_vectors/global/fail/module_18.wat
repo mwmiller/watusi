@@ -1,1 +1,1 @@
-(module (global i32 (global.get 1)) (global i32 (i32.const 0)))
+(module (func (result i32) (global.get 0)))

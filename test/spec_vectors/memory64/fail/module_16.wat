@@ -1,1 +1,0 @@
-(module (func (drop (memory.size))))

@@ -1,1 +1,1 @@
-(module (type (func (param f64 i32))) (table 0 funcref) (func $arity-0-vs-2 (return_call_indirect (type 0) (i32.const 0))))
+(module (table funcref (elem 0 0)))

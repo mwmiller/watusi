@@ -1,1 +1,5 @@
-(module (func (result v128) (i16x8.abs (f32.const 0.0))))
+(module
+    (func $i16x8.min_u-1st-arg-empty (result v128)
+      (i16x8.min_u (v128.const i16x8 0 0 0 0 0 0 0 0))
+    )
+  )

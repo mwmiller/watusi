@@ -14,6 +14,7 @@ defmodule Watusi.Encoder.Instructions do
   @nullable_abstract_refs ["funcref", "externref", "anyref", "eqref", "structref", "arrayref", "i31ref", "exnref"]
   @unary_operand_ops ["ref.i31", "any.convert_extern", "extern.convert_any"]
   @f32_overflow_midpoint (1 <<< 128) - (1 <<< 103)
+  @f64_overflow_midpoint (1 <<< 1024) - (1 <<< 970)
   @simd_shapes ["i8x16", "i16x8", "i32x4", "i64x2", "f32x4", "f64x2"]
 
   @bulk_mem_ops [
@@ -1216,6 +1217,7 @@ defmodule Watusi.Encoder.Instructions do
 
   defp encode_v128_values("f32x4", 4, values) do
     Enum.map(values, fn
+      {:float, {:nan, sign, payload}} -> encode_nan32(sign, payload)
       {:int, v} -> encode_f32(v * 1.0)
       {:float, v} -> encode_f32(v)
       {:float, v, literal} -> encode_f32_decimal(v, literal)
@@ -1224,6 +1226,7 @@ defmodule Watusi.Encoder.Instructions do
 
   defp encode_v128_values(_, 4, values) do
     Enum.map(values, fn
+      {:float, {:nan, sign, payload}} -> encode_nan32(sign, payload)
       {:int, v} -> <<v::little-32>>
       {:float, v} -> encode_f32(v)
       {:float, v, literal} -> encode_f32_decimal(v, literal)
@@ -1232,17 +1235,19 @@ defmodule Watusi.Encoder.Instructions do
 
   defp encode_v128_values("f64x2", 2, values) do
     Enum.map(values, fn
+      {:float, {:nan, sign, payload}} -> encode_nan64(sign, payload)
       {:int, v} -> encode_f64(v * 1.0)
       {:float, v} -> encode_f64(v)
-      {:float, v, _} -> encode_f64(v)
+      {:float, v, literal} -> encode_f64_decimal(v, literal)
     end)
   end
 
   defp encode_v128_values(_, 2, values) do
     Enum.map(values, fn
+      {:float, {:nan, sign, payload}} -> encode_nan64(sign, payload)
       {:int, v} -> <<v::little-64>>
       {:float, v} -> encode_f64(v)
-      {:float, v, _} -> encode_f64(v)
+      {:float, v, literal} -> encode_f64_decimal(v, literal)
     end)
   end
 
@@ -1517,6 +1522,11 @@ defmodule Watusi.Encoder.Instructions do
 
   defp natural_align_standard(name) do
     cond do
+      String.contains?(name, "load8_splat") -> 0
+      String.contains?(name, "load16_splat") -> 1
+      String.contains?(name, "load32_splat") or String.contains?(name, "load32_zero") -> 2
+      String.contains?(name, "load64_splat") or String.contains?(name, "load64_zero") -> 3
+      String.contains?(name, "load8x8_") or String.contains?(name, "load16x4_") or String.contains?(name, "load32x2_") -> 3
       String.contains?(name, "v128") -> 4
       String.contains?(name, "8") -> 0
       String.contains?(name, "16") -> 1
@@ -1573,7 +1583,7 @@ defmodule Watusi.Encoder.Instructions do
     <<bits::little-64>>
   end
 
-  defp encode_arg("f64.const", {:float, val, _literal}, _, _), do: encode_f64(val)
+  defp encode_arg("f64.const", {:float, val, literal}, _, _), do: encode_f64_decimal(val, literal)
   defp encode_arg("f64.const", {:float, val}, _, _), do: encode_f64(val)
   defp encode_arg("f64.const", {:int, val}, _, _), do: encode_f64(val * 1.0)
 
@@ -1639,14 +1649,24 @@ defmodule Watusi.Encoder.Instructions do
   defp encode_f32(:neg_nan), do: <<0, 0, 192, 255>>
   defp encode_f32(f), do: <<f::float-little-size(32)>>
 
+  defp encode_nan32(sign, payload) do
+    bits = encode_sign(sign) <<< 31 ||| 0xFF <<< 23 ||| (payload &&& 0x7FFFFF)
+    <<bits::little-32>>
+  end
+
   defp encode_f64(:infinity), do: <<0, 0, 0, 0, 0, 0, 240, 127>>
   defp encode_f64(:neg_infinity), do: <<0, 0, 0, 0, 0, 0, 240, 255>>
   defp encode_f64(:nan), do: <<0, 0, 0, 0, 0, 0, 248, 127>>
   defp encode_f64(:neg_nan), do: <<0, 0, 0, 0, 0, 0, 248, 255>>
   defp encode_f64(f), do: <<f::float-little-size(64)>>
 
+  defp encode_nan64(sign, payload) do
+    bits = encode_sign(sign) <<< 63 ||| 0x7FF <<< 52 ||| (payload &&& 0xFFFFFFFFFFFFF)
+    <<bits::little-64>>
+  end
+
   defp encode_f32_decimal(value, literal) do
-    case parse_decimal_rational(literal) do
+    case float_rational(literal) do
       {:ok, {num, den}} ->
         value
         |> nearest_f32_bits(num, den)
@@ -1656,6 +1676,74 @@ defmodule Watusi.Encoder.Instructions do
         encode_f32(value)
     end
   end
+
+  defp encode_f64_decimal(value, literal) do
+    case float_rational(literal) do
+      {:ok, {num, den}} ->
+        value
+        |> nearest_f64_bits(num, den)
+        |> encode_f64_bits()
+
+      :error ->
+        encode_f64(value)
+    end
+  end
+
+  defp float_rational(literal) do
+    case hex_float_literal?(literal) do
+      true -> parse_hex_rational(literal)
+      false -> parse_decimal_rational(literal)
+    end
+  end
+
+  defp hex_float_literal?(literal) do
+    cleaned = String.replace(literal, "_", "")
+
+    case cleaned do
+      <<"-", rest::binary>> -> hex_float_literal_rest?(rest)
+      <<"+", rest::binary>> -> hex_float_literal_rest?(rest)
+      rest -> hex_float_literal_rest?(rest)
+    end
+  end
+
+  defp hex_float_literal_rest?(<<"0x", _::binary>>), do: true
+  defp hex_float_literal_rest?(_), do: false
+
+  defp parse_hex_rational(literal) do
+    cleaned = String.replace(literal, "_", "")
+
+    {sign, rest} =
+      case cleaned do
+        <<"-", tail::binary>> -> {-1, tail}
+        <<"+", tail::binary>> -> {1, tail}
+        _ -> {1, cleaned}
+      end
+
+    <<"0x", rest::binary>> = rest
+
+    {sig, exponent} =
+      case String.split(rest, ~r/[pP]/, parts: 2) do
+        [sig, exp] -> {sig, String.to_integer(exp)}
+        [sig] -> {sig, 0}
+      end
+
+    {whole, frac} =
+      case String.split(sig, ".", parts: 2) do
+        [whole] -> {whole, ""}
+        [whole, frac] -> {whole, frac}
+      end
+
+    digits = if whole == "", do: frac, else: whole <> frac
+    mant = if digits == "", do: 0, else: String.to_integer(digits, 16)
+    hex_mantissa_rational(sign, mant, exponent - 4 * byte_size(frac))
+  rescue
+    _ -> :error
+  end
+
+  defp hex_mantissa_rational(sign, mant, exp2) when exp2 >= 0,
+    do: {:ok, {sign * mant <<< exp2, 1}}
+
+  defp hex_mantissa_rational(sign, mant, exp2), do: {:ok, {sign * mant, 1 <<< -exp2}}
 
   defp nearest_f32_bits(value, num, den) do
     bits = float_to_f32_bits(value)
@@ -1667,9 +1755,26 @@ defmodule Watusi.Encoder.Instructions do
     end
   end
 
+  defp nearest_f64_bits(value, num, den) do
+    bits = float_to_f64_bits(value)
+
+    case bits do
+      0x7FF0_0000_0000_0000 -> handle_f64_overflow(bits, num, den)
+      0xFFF0_0000_0000_0000 -> handle_f64_overflow(bits, -num, den)
+      _ -> find_best_f64_candidate(bits, num, den)
+    end
+  end
+
   defp handle_f32_overflow(bits, num, den) do
-    case compare_to_midpoint(num, den) do
+    case compare_to_f32_midpoint(num, den) do
       :lt -> if bits == 0x7F80_0000, do: 0x7F7F_FFFF, else: 0xFF7F_FFFF
+      _ -> bits
+    end
+  end
+
+  defp handle_f64_overflow(bits, num, den) do
+    case compare_to_f64_midpoint(num, den) do
+      :lt -> if bits == 0x7FF0_0000_0000_0000, do: 0x7FEF_FFFF_FFFF_FFFF, else: 0xFFEF_FFFF_FFFF_FFFF
       _ -> bits
     end
   end
@@ -1679,7 +1784,7 @@ defmodule Watusi.Encoder.Instructions do
     |> Enum.filter(&finite_f32_bits?/1)
     |> Enum.uniq()
     |> Enum.reduce(bits, fn cand, best ->
-      case compare_candidate(cand, best, num, den) do
+      case compare_candidate(cand, best, num, den, &f32_bits_to_rational/1) do
         :lt -> cand
         :eq -> pick_even_tie(cand, best)
         :gt -> best
@@ -1687,9 +1792,25 @@ defmodule Watusi.Encoder.Instructions do
     end)
   end
 
-  defp compare_to_midpoint(num, den) do
+  defp find_best_f64_candidate(bits, num, den) do
+    [bits - 1, bits, bits + 1]
+    |> Enum.filter(&finite_f64_bits?/1)
+    |> Enum.uniq()
+    |> Enum.reduce(bits, fn cand, best ->
+      case compare_candidate(cand, best, num, den, &f64_bits_to_rational/1) do
+        :lt -> cand
+        :eq -> pick_even_tie(cand, best)
+        :gt -> best
+      end
+    end)
+  end
+
+  defp compare_to_f32_midpoint(num, den), do: compare_to_midpoint(num, den, @f32_overflow_midpoint)
+  defp compare_to_f64_midpoint(num, den), do: compare_to_midpoint(num, den, @f64_overflow_midpoint)
+
+  defp compare_to_midpoint(num, den, midpoint) do
     lhs = abs(num)
-    rhs = @f32_overflow_midpoint * den
+    rhs = midpoint * den
 
     case lhs < rhs do
       true ->
@@ -1703,9 +1824,9 @@ defmodule Watusi.Encoder.Instructions do
     end
   end
 
-  defp compare_candidate(cand_bits, best_bits, num, den) do
-    {cand_num, cand_den} = f32_bits_to_rational(cand_bits)
-    {best_num, best_den} = f32_bits_to_rational(best_bits)
+  defp compare_candidate(cand_bits, best_bits, num, den, bits_to_rational) do
+    {cand_num, cand_den} = bits_to_rational.(cand_bits)
+    {best_num, best_den} = bits_to_rational.(best_bits)
 
     cand_dist = abs(num * cand_den - cand_num * den)
     best_dist = abs(num * best_den - best_num * den)
@@ -1735,12 +1856,25 @@ defmodule Watusi.Encoder.Instructions do
   defp finite_f32_bits?(bits),
     do: bits >= 0 and bits <= 0xFFFF_FFFF and (bits &&& 0x7F80_0000) != 0x7F80_0000
 
+  defp finite_f64_bits?(bits),
+    do: bits >= 0 and bits <= 0xFFFF_FFFF_FFFF_FFFF and (bits &&& 0x7FF0_0000_0000_0000) != 0x7FF0_0000_0000_0000
+
+  defp float_to_f32_bits(:infinity), do: 0x7F80_0000
+  defp float_to_f32_bits(:neg_infinity), do: 0xFF80_0000
   defp float_to_f32_bits(value) do
     <<bits::little-32>> = <<value::float-little-size(32)>>
     bits
   end
 
+  defp float_to_f64_bits(:infinity), do: 0x7FF0_0000_0000_0000
+  defp float_to_f64_bits(:neg_infinity), do: 0xFFF0_0000_0000_0000
+  defp float_to_f64_bits(value) do
+    <<bits::little-64>> = <<value::float-little-size(64)>>
+    bits
+  end
+
   defp encode_f32_bits(bits), do: <<bits::little-32>>
+  defp encode_f64_bits(bits), do: <<bits::little-64>>
 
   defp f32_bits_to_rational(bits) do
     sign =
@@ -1761,6 +1895,28 @@ defmodule Watusi.Encoder.Instructions do
 
       _ ->
         make_pow2_rational(sign * ((1 <<< 23) + frac), exp - 150)
+    end
+  end
+
+  defp f64_bits_to_rational(bits) do
+    sign =
+      case bits >>> 63 do
+        0 -> 1
+        _ -> -1
+      end
+
+    exp = bits >>> 52 &&& 0x7FF
+    frac = bits &&& 0xF_FFFF_FFFF_FFFF
+
+    case exp do
+      0 ->
+        case frac do
+          0 -> {0, 1}
+          _ -> make_pow2_rational(sign * frac, -1074)
+        end
+
+      _ ->
+        make_pow2_rational(sign * ((1 <<< 52) + frac), exp - 1075)
     end
   end
 
@@ -1790,8 +1946,6 @@ defmodule Watusi.Encoder.Instructions do
   rescue
     _ -> :error
   end
-
-  defp parse_decimal_rational(_), do: :error
 
   defp decimal_mantissa_to_rational(sign, mantissa, exponent) do
     case String.split(mantissa, ".", parts: 2) do

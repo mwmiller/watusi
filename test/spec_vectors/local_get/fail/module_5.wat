@@ -1,1 +1,1 @@
-(module (func $type-param-num-vs-num (param f32) (result i32) (i32.eqz (local.get 0))))
+(module (func $type-param-num-vs-num (param f64 i64) (result f64) (f64.neg (local.get 1))))

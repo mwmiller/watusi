@@ -1,1 +1,1 @@
-(module (global (export "a") (mut f32) (f32.const 0)))
+(module (global $g i32 (i32.const 0)) (global i32 (global.get $g)))

@@ -1,1 +1,1 @@
-(module (import "spectest" "unknown" (func)))
+(module (import "test" "global-f32" (global f32)))

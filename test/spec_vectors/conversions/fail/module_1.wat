@@ -1,1 +1,1 @@
-(module (func (result i32) (i32.wrap_i64 (f32.const 0))))
+(module (func (result i32) (i32.trunc_f32_s (i64.const 0))))

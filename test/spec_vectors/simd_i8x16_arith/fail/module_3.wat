@@ -1,1 +1,5 @@
-(module (func (result v128) (i8x16.sub (i32.const 0) (f32.const 0.0))))
+(module
+    (func $i8x16.neg-arg-empty (result v128)
+      (i8x16.neg)
+    )
+  )

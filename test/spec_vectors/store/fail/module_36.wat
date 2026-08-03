@@ -1,1 +1,1 @@
-(module (memory 1) (func $type-value-empty-in-select (select (i32.const 0) (i32.store) (i32.const 1) (i32.const 2))))
+(module (memory 1) (func (i64.store (f32.const 0) (i32.const 0))))

@@ -1,1 +1,7 @@
-(module (global i32 (i32.const 0)) (func (result i32) (global.get 1)))
+(module
+    (global $x (mut i32) (i32.const 0))
+    (func $type-global.set-value-empty-in-else
+      (i32.const 0) (i32.const 0)
+      (if (result i32) (then (i32.const 0)) (else (global.set $x)))
+    )
+  )

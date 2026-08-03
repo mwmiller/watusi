@@ -1,1 +1,1 @@
-(module (import "test-table-10-inf" "table-10-inf" (func)))
+(module (import "test-table-10-20" "table-10-20" (table 5 25 funcref)))

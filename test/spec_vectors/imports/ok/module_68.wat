@@ -1,1 +1,0 @@
-(module (import "spectest" "table" (global i32)))

@@ -1,1 +1,1 @@
-(module (func (throw_ref)))
+(module (func (block (throw_ref))))

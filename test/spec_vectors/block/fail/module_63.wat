@@ -1,1 +1,3 @@
-(module (func $type-break-last-void-vs-i64 (result i64) (block (result i64) (br 0))))
+(module (func $type-break-void-vs-f64 (result f64)
+    (block (result f64) (br 0 (nop)) (f64.const 1.0))
+  ))

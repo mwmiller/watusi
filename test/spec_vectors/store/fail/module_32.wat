@@ -1,1 +1,13 @@
-(module (memory 1) (func $type-value-empty-in-br_table (i32.const 0) (block (br_table 0 (i32.const 0) (i32.store)))))
+(module
+    (memory 1)
+    (func $f (param i32) (result i32) (local.get 0))
+    (type $sig (func (param i32) (result i32)))
+    (table funcref (elem $f))
+    (func $type-value-empty-in-call_indirect
+      (block (result i32)
+        (call_indirect (type $sig)
+          (i32.const 0) (i32.store) (i32.const 0)
+        )
+      )
+    )
+  )

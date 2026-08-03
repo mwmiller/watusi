@@ -1,1 +1,1 @@
-(module (table i64 0 4294967295 funcref))
+(module (table i64 0 0xffff_ffff funcref))

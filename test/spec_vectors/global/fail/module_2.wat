@@ -1,1 +1,1 @@
-(module (import "spectest" "global_i32" (global i32)) (func (global.set 0 (i32.const 1))))
+(module (global f32 (f32.neg (f32.const 0))))
