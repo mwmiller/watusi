@@ -4,7 +4,7 @@ defmodule Watusi.MixProject do
   def project do
     [
       app: :watusi,
-      version: "0.5.0",
+      version: "0.6.0",
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -18,11 +18,11 @@ defmodule Watusi.MixProject do
         maintainers: ["Matt Miller"],
         licenses: ["MIT"],
         links: %{"GitHub" => "https://github.com/mwmiller/watusi"},
-        files: ~w(lib .formatter.exs mix.exs README.md LICENSE)
+        files: ~w(lib .formatter.exs mix.exs README.md CHANGELOG.md LICENSE)
       ],
       docs: [
         main: "Watusi",
-        extras: ["README.md"]
+        extras: ["README.md", "CHANGELOG.md"]
       ]
     ]
   end

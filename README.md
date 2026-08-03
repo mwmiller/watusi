@@ -8,7 +8,7 @@ Watusi provides a pure-Elixir pipeline for transforming human-readable WebAssemb
 
 - **Native Elixir**: No external dependencies or tools required - pure Elixir implementation.
 - **High Performance**: Optimized lexer and encoder with compile-time code generation for maximum speed.
-- **Modern Standards**: Core 1.0 plus Bulk Memory, Fixed-width SIMD, Threads/Atomics, Sign-extension, Non-trapping float-to-int, Exception Handling, and Garbage Collection proposals. Reference-Types and Function-References are partially supported.
+- **Modern Standards**: Core 1.0 plus Bulk Memory, Fixed-width SIMD, Threads/Atomics, Sign-extension, Non-trapping float-to-int, Exception Handling, Garbage Collection, Reference-Types, and Function-References proposals.
 - **Developer Friendly**: Optional debug names and detailed identifier resolution.
 - **Spec Compliant**: Tested against the official spec vectors (5,000+) with bit-for-bit parity to `wasm-tools`.
 
@@ -38,7 +38,7 @@ Add `watusi` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:watusi, "~> 0.4.0"}
+    {:watusi, "~> 0.6.0"}
   ]
 end
 ```
