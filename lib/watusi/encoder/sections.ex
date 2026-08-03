@@ -321,15 +321,19 @@ defmodule Watusi.Encoder.Sections do
   def collect_import_signatures(imports, types) do
     Enum.flat_map(imports, fn
       [{:keyword, "import"}, _, _, [{:keyword, "func"} | rest]] ->
-        [extract_signature([{:keyword, "func"} | rest], types)]
+        untagged_import_sig([{:keyword, "func"} | rest], types)
 
       item ->
         case normalize_import(item) do
-          {_, _, "func", rest} -> [extract_signature([{:keyword, "func"} | rest], types)]
-          {_, _, "tag", rest} -> [extract_signature([{:keyword, "func"} | rest], types)]
+          {_, _, "func", rest} -> untagged_import_sig([{:keyword, "func"} | rest], types)
+          {_, _, "tag", rest} -> untagged_import_sig([{:keyword, "func"} | rest], types)
           _ -> []
         end
     end)
+  end
+
+  defp untagged_import_sig(func, types) do
+    if has_explicit_type?(func), do: [], else: [extract_signature(func, types)]
   end
 
   def extract_signature([{:keyword, "func"} | rest] = func, types) do
@@ -351,7 +355,7 @@ defmodule Watusi.Encoder.Sections do
     end
   end
 
-  def extract_signature_index([{:keyword, "func"} | rest] = func, signatures, types) do
+  def extract_signature_index([{:keyword, "func"} | rest] = func, signatures, types, recs) do
     case Enum.find(rest, &match?([{:keyword, "type"}, _], &1)) do
       [{:keyword, "type"}, {:id, id}] ->
         Enum.find_index(types, &match?([{:keyword, "type"}, {:id, ^id} | _], &1)) ||
@@ -361,9 +365,44 @@ defmodule Watusi.Encoder.Sections do
         i
 
       _ ->
-        sig = extract_raw_signature(func)
-        Enum.find_index(signatures, &(&1 == sig))
+        resolve_untagged_func_index(func, signatures, types, recs)
     end
+  end
+
+  defp resolve_untagged_func_index(func, signatures, types, recs) do
+    sig = extract_raw_signature(func)
+    n_declared = length(types)
+
+    case top_level_index(recs, sig) do
+      nil ->
+        (Enum.find_index(Enum.drop(signatures, n_declared), &(&1 == sig)) || 0) + n_declared
+
+      top ->
+        top
+    end
+  end
+
+  defp top_level_index(recs, target) do
+    {sig_map, _} =
+      Enum.reduce(recs, {%{}, -1}, fn item, {sig_map, idx} ->
+        case item do
+          [{:keyword, "type"} | _] ->
+            next = idx + 1
+
+            case extract_raw_signature(item) do
+              {p, r} when is_list(p) and is_list(r) ->
+                {Map.put_new(sig_map, {p, r}, next), next}
+
+              _ ->
+                {sig_map, next}
+            end
+
+          [{:keyword, "rec"} | members] ->
+            {sig_map, idx + length(members)}
+        end
+      end)
+
+    Map.get(sig_map, target)
   end
 
   def prepare_signatures(sections) do
@@ -371,19 +410,22 @@ defmodule Watusi.Encoder.Sections do
     type_sigs = Enum.map(sections.types, &extract_raw_signature/1)
 
     tag_sigs =
-      Enum.map(sections.tags, fn [{:keyword, "tag"} | rest] ->
-        extract_raw_signature([{:keyword, "func"} | rest])
+      Enum.flat_map(sections.tags, fn [{:keyword, "tag"} | rest] ->
+        tag = [{:keyword, "func"} | rest]
+        if has_explicit_type?(tag), do: [], else: [extract_raw_signature(tag)]
       end)
 
     func_and_block_sigs =
       Enum.flat_map(sections.funcs, fn func ->
-        [
-          extract_signature(func, sections.types)
-          | scan_for_signatures(func)
-        ]
+        func_sig =
+          if has_explicit_type?(func),
+            do: [],
+            else: [extract_signature(func, sections.types)]
+
+        func_sig ++ scan_for_signatures(func)
       end)
 
-    existing_sigs = MapSet.new(type_sigs)
+    existing_sigs = top_level_existing_sigs(sections.recs)
 
     other_sigs =
       [
@@ -403,6 +445,23 @@ defmodule Watusi.Encoder.Sections do
       |> Enum.reverse()
 
     type_sigs ++ other_sigs
+  end
+
+  defp has_explicit_type?([{:keyword, _kind} | rest]) do
+    Enum.any?(rest, &match?([{:keyword, "type"} | _], &1))
+  end
+  defp has_explicit_type?(_), do: false
+
+  defp top_level_existing_sigs(recs) do
+    Enum.flat_map(recs, fn
+      [{:keyword, "rec"} | _] -> []
+      type_ent ->
+        case extract_raw_signature(type_ent) do
+          {p, r} when is_list(p) and is_list(r) -> [extract_raw_signature(type_ent)]
+          _ -> []
+        end
+    end)
+    |> MapSet.new()
   end
 
   defp scan_for_signatures(term) when is_list(term) do
@@ -795,37 +854,37 @@ defmodule Watusi.Encoder.Sections do
     LEB128.encode_signed(val)
   end
 
-  def encode_import_section([], _signatures, _types), do: []
+  def encode_import_section([], _signatures, _types, _recs), do: []
 
-  def encode_import_section(imports, signatures, types) do
-    ctx = %{signatures: signatures, types: types}
+  def encode_import_section(imports, signatures, types, recs) do
+    ctx = %{signatures: signatures, types: types, recs: recs}
 
     [
       Common.encode_u32(length(imports))
-      | Enum.map(imports, &encode_import(&1, signatures, types, ctx))
+      | Enum.map(imports, &encode_import(&1, signatures, types, recs, ctx))
     ]
   end
 
-  def encode_import(item, signatures, types) do
-    ctx = %{signatures: signatures, types: types}
-    encode_import(item, signatures, types, ctx)
+  def encode_import(item, signatures, types, recs \\ nil) do
+    ctx = %{signatures: signatures, types: types, recs: recs}
+    encode_import(item, signatures, types, recs, ctx)
   end
 
-  def encode_import(item, signatures, types, ctx) do
+  def encode_import(item, signatures, types, recs, ctx) do
     {mod, name, kind, rest} = normalize_import(item)
 
     [
       Common.encode_string(mod),
-      Common.encode_string(name) | do_encode_import(kind, rest, signatures, types, ctx)
+      Common.encode_string(name) | do_encode_import(kind, rest, signatures, types, recs, ctx)
     ]
   end
 
-  defp do_encode_import("func", rest, signatures, types, _ctx) do
-    type_idx = extract_signature_index([{:keyword, "func"} | rest], signatures, types)
+  defp do_encode_import("func", rest, signatures, types, recs, _ctx) do
+    type_idx = extract_signature_index([{:keyword, "func"} | rest], signatures, types, recs)
     [0x00, Common.encode_u32(type_idx)]
   end
 
-  defp do_encode_import("table", rest, _signatures, _types, ctx) do
+  defp do_encode_import("table", rest, _signatures, _types, _recs, ctx) do
     type_node =
       Enum.find(rest, fn
         {:keyword, k} when k in @reftypes -> true
@@ -840,11 +899,11 @@ defmodule Watusi.Encoder.Sections do
     ]
   end
 
-  defp do_encode_import("memory", rest, _signatures, _types, _ctx) do
+  defp do_encode_import("memory", rest, _signatures, _types, _recs, _ctx) do
     [0x02, encode_limits(rest)]
   end
 
-  defp do_encode_import("global", rest, _signatures, _types, ctx) do
+  defp do_encode_import("global", rest, _signatures, _types, _recs, ctx) do
     type_desc =
       case rest do
         [{:id, _id}, desc] -> desc
@@ -871,8 +930,8 @@ defmodule Watusi.Encoder.Sections do
     [0x03, type_bytes, mut]
   end
 
-  defp do_encode_import("tag", rest, signatures, types, _ctx) do
-    type_idx = extract_signature_index([{:keyword, "func"} | rest], signatures, types)
+  defp do_encode_import("tag", rest, signatures, types, recs, _ctx) do
+    type_idx = extract_signature_index([{:keyword, "func"} | rest], signatures, types, recs)
     [0x04, 0x00, Common.encode_u32(type_idx)]
   end
 

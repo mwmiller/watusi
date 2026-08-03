@@ -90,13 +90,13 @@ defmodule Watusi.Encoder do
       Sections.encode_type_section(signatures, sections.recs, ctx),
       Common.encode_section(
         2,
-        Sections.encode_import_section(sections.imports, signatures, sections.types)
+        Sections.encode_import_section(sections.imports, signatures, sections.types, sections.recs)
       ),
       Common.encode_section(
         3,
         Common.encode_vector(
           sections.funcs,
-          &Sections.extract_signature_index(&1, signatures, sections.types),
+          &Sections.extract_signature_index(&1, signatures, sections.types, sections.recs),
           &Common.encode_u32/1
         )
       ),
