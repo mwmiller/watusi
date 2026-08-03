@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-08-03
+
+### Changed
+
+- Refactored the encoder internals for clarity and maintainability with no behavioral change: decomposed `encode_elem` and `encode_gc_type_immediates` into focused helpers, replaced `natural_align_standard`'s `cond` chain with an override table plus a digit fallback, flattened `parse_hex_rational` into a linear pipeline, and reduced nesting in `top_level_index`. The full spec suite (`4868/4868`) continues to pass byte-for-byte, and `mix credo --strict` reports no issues.
+
 ## [0.6.1] - 2026-08-03
 
 ### Added
@@ -87,7 +93,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Floating-point support.
 - Native Elixir WAT-to-WASM conversion pipeline.
 
-[Unreleased]: https://github.com/mwmiller/watusi/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/mwmiller/watusi/compare/v0.6.2...HEAD
+[0.6.2]: https://github.com/mwmiller/watusi/releases/tag/v0.6.2
 [0.6.1]: https://github.com/mwmiller/watusi/releases/tag/v0.6.1
 [0.6.0]: https://github.com/mwmiller/watusi/releases/tag/v0.6.0
 [0.5.0]: https://github.com/mwmiller/watusi/releases/tag/v0.5.0

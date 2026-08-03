@@ -38,7 +38,7 @@ Add `watusi` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:watusi, "~> 0.6.1"}
+    {:watusi, "~> 0.6.2"}
   ]
 end
 ```
