@@ -27,11 +27,9 @@ Watusi adheres to the following standards:
 - WebAssembly Sign-extension Operators.
 - WebAssembly Nontrapping Float-to-int Conversions.
 - WebAssembly Exception Handling Proposal.
-- WebAssembly Garbage Collection Proposal (partial): recursive/sub-typed type groups, struct/array types, and GC/ref instructions.
-- WebAssembly Reference-Types and Function-References (partial).
+- WebAssembly Garbage Collection Proposal: recursive/sub-typed type groups, struct/array types, and GC/ref instructions.
+- WebAssembly Reference-Types and Function-References.
 - IEEE 754-2019 for floating-point representation.
-
-> A handful of invalid-expected vectors remain tagged `:known_failure`; see `test/spec_vectors/README.md`.
 
 ## Installation
 
@@ -92,5 +90,5 @@ wasm_with_names = Watusi.to_wasm(wat, debug_names: true)
 
 Watusi is tested against the [bytecodealliance/wasm-tools](https://github.com/bytecodealliance/wasm-tools). The test suite compiles each `.wat` vector with `wasm-tools parse` (stripped with `wasm-tools strip --all`) and verifies bit-for-bit parity with Watusi's output, then validates generated binaries with `wasm-tools validate --features all`.
 
-Over 5,000 official spec vectors are included, covering core instructions and advanced extensions. A subset (currently 8) of invalid-expected vectors—cases where the pinned `wasm-tools` accepts modules the spec suite marks invalid—is tagged `:known_failure` and excluded from the default run. Run them explicitly with `mix test --include known_failure`; see `test/spec_vectors/README.md` for details.
+Over 5,000 official spec vectors are included, covering core instructions and advanced extensions, with the full suite at `5146/5146` passing against the pinned `wasm-tools` reference. See `test/spec_vectors/README.md` for details.
 

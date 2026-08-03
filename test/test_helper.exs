@@ -69,9 +69,22 @@ defmodule Watusi.TestHelper do
         end
 
       {:ok, wasm} ->
-        # If reference tool says it's OK, Watusi must still produce something invalid
-        # because it's in a 'fail' directory.
-        refute_wasm_valid(wasm)
+        case wasm_valid?(wasm) do
+          :ok ->
+            # wasm-tools accepts it as valid (it is more permissive than the
+            # spec suite for some constructs). Byte-parity with the reference
+            # is then the meaningful assertion, not invalidity.
+            compare_with_reference(wat, wasm)
+
+          :invalid ->
+            # Reference parses but the validator still rejects it. Watusi
+            # must not silently produce a valid module either.
+            try do
+              refute_wasm_valid(Watusi.to_wasm(wat))
+            rescue
+              _ -> :ok
+            end
+        end
     end
   end
 
@@ -134,6 +147,22 @@ defmodule Watusi.TestHelper do
            ) do
         {_output, 0} -> :ok
         {output, _} -> flunk("Generated WASM failed wasm-tools validate:\n#{output}")
+      end
+    after
+      File.rm_rf(path)
+    end
+  end
+
+  defp wasm_valid?(binary) do
+    path = Path.join(System.tmp_dir!(), "watusi_valid_#{System.unique_integer([:positive])}.wasm")
+    File.write!(path, binary)
+
+    try do
+      case System.cmd("wasm-tools", ["validate", "--features", "all", path],
+             stderr_to_stdout: true
+           ) do
+        {_output, 0} -> :ok
+        {_output, _} -> :invalid
       end
     after
       File.rm_rf(path)

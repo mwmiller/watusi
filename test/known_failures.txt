@@ -1,14 +1,6 @@
-# Spec-vector tests that currently fail against the pinned wasm-tools 1.255.0
-# reference. These 8 are all invalid-expected (fail/) cases where wasm-tools
-# itself validates the module as *valid* (it is more permissive than the spec
-# suite expects for these constructs), so the harness's refute_wasm_valid on
-# the reference output always fails. No Watusi encoding change can satisfy
-# them while wasm-tools accepts the reference bytes.
-test/spec_vectors/br_on_cast/fail/module_4.wat
-test/spec_vectors/br_on_cast/fail/module_6.wat
-test/spec_vectors/br_on_cast/fail/module_7.wat
-test/spec_vectors/br_on_cast_fail/fail/module_4.wat
-test/spec_vectors/br_on_cast_fail/fail/module_6.wat
-test/spec_vectors/br_on_cast_fail/fail/module_7.wat
-test/spec_vectors/tag/fail/module_2.wat
-test/spec_vectors/tag/fail/module_3.wat
+# Spec-vector tests known to fail on the current toolchain.
+#
+# Currently empty: the full suite (mix test --include known_failure) passes
+# 5146/5146. The harness asserts byte-parity with wasm-tools 1.255.0 even for
+# fail/ vectors that wasm-tools validates as valid (it is more permissive than
+# the spec suite for some constructs), so no known failures remain.

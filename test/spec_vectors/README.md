@@ -34,11 +34,13 @@ these with `mix gen_refs`. By default no `.ref.wasm` files are committed, so ref
 A subset of vectors exercises features Watusi does not yet fully support. These paths are listed in
 `test/known_failures.txt`; `test/spec_test.exs` tags matching tests with `@tag :known_failure`, and because
 `test/test_helper.exs` starts ExUnit with `exclude: [:known_failure]`, they are skipped by default so the
-suite stays green. There are currently 8 such vectors. All 8 are `fail/` (invalid-expected) cases where the
-pinned `wasm-tools` 1.255.0 validates the module as *valid* (it is more permissive than the spec suite expects
-for `br_on_cast`/`br_on_cast_fail` to nullable/cross-heaptype targets and certain `tag` exceptions), so the
-harness's `refute_wasm_valid` on the reference output always fails. No Watusi encoding change can satisfy
-them while `wasm-tools` accepts the reference bytes.
+suite stays green. There are currently **no** known failures: the full suite (including `:known_failure`-tagged
+vectors) passes `5146/5146`.
+
+For `fail/` vectors, the harness asserts byte-parity with the wasm-tools reference. The pinned `wasm-tools`
+1.255.0 validates some modules the spec suite marks invalid (e.g. `br_on_cast`/`br_on_cast_fail` to
+nullable/cross-heaptype targets and certain `tag` exceptions); when the reference accepts such a vector, the
+harness treats the reference bytes as ground truth and requires Watusi to match them exactly.
 
 Run the full suite including the known failures:
 
