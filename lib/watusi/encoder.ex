@@ -77,11 +77,12 @@ defmodule Watusi.Encoder do
         Common.encode_vector(sections.data, &Sections.encode_data(&1, ctx))
       )
 
-    # Custom Section 0: Debug names (Optional)
+    # Custom Section 0: Debug names (Optional). Raw `binary`/`quote` module
+    # forms carry no textual identifiers to name.
     name_section =
-      case debug_names do
+      case debug_names and not raw_module_form?(body) do
         true -> Sections.encode_name_section(module_id, sections, counts, signatures)
-        false -> []
+        _ -> []
       end
 
     # Sections must appear in a specific numeric order defined by the WASM spec
@@ -126,6 +127,14 @@ defmodule Watusi.Encoder do
       data_section,
       name_section
     ])
+  end
+
+  defp raw_module_form?(body) do
+    Enum.any?(body, fn
+      [{:keyword, kw} | _] when kw in ["binary", "quote"] -> true
+      {:keyword, kw} when kw in ["binary", "quote"] -> true
+      _ -> false
+    end)
   end
 
   # Import counts are needed to calculate the base index for local declarations

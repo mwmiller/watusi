@@ -1691,37 +1691,36 @@ defmodule Watusi.Encoder.Sections do
   end
 
   # The Custom (name) section allows debuggers to show symbolic names for indices
-  def encode_name_section(nil, %{imports: [], funcs: []}, _counts, _signatures), do: []
-
   def encode_name_section(module_id, sections, counts, signatures) do
-    sub0 =
-      case module_id do
-        nil -> []
-        id -> encode_name_subsection(0, Common.encode_string(id))
-      end
-
-    func_names = collect_func_names(sections.imports, sections.funcs)
-
-    sub1 =
-      case func_names do
-        [] -> []
-        list -> encode_name_subsection(1, Common.encode_vector(list, &encode_name_assoc/1))
-      end
-
+    func_names = collect_func_names(sections.imports, sections.funcs, counts.func)
     local_names = collect_local_names(sections.funcs, counts.func, sections.types, signatures)
 
-    sub2 =
-      case local_names do
-        [] ->
-          []
+    if module_id == nil and func_names == [] and local_names == [] do
+      []
+    else
+      payload = [
+        Common.encode_string("name"),
+        encode_module_name_subsection(module_id),
+        encode_func_name_subsection(func_names),
+        encode_local_name_subsection(local_names)
+      ]
 
-        list ->
-          encode_name_subsection(2, Common.encode_vector(list, &encode_indirect_name_assoc/1))
-      end
-
-    payload = [Common.encode_string("name"), sub0, sub1, sub2]
-    Common.encode_section(0, payload)
+      Common.encode_section(0, payload)
+    end
   end
+
+  defp encode_module_name_subsection(nil), do: []
+  defp encode_module_name_subsection(id), do: encode_name_subsection(0, Common.encode_string(id))
+
+  defp encode_func_name_subsection([]), do: []
+
+  defp encode_func_name_subsection(names),
+    do: encode_name_subsection(1, Common.encode_vector(names, &encode_name_assoc/1))
+
+  defp encode_local_name_subsection([]), do: []
+
+  defp encode_local_name_subsection(names),
+    do: encode_name_subsection(2, Common.encode_vector(names, &encode_indirect_name_assoc/1))
 
   defp encode_name_subsection(id, payload),
     do: [id, Common.encode_u32(IO.iodata_length(payload)), payload]
@@ -1731,28 +1730,25 @@ defmodule Watusi.Encoder.Sections do
   defp encode_indirect_name_assoc({func_idx, map}),
     do: [Common.encode_u32(func_idx), Common.encode_vector(map, &encode_name_assoc/1)]
 
-  defp collect_func_names(imports, funcs) do
-    import_names = Enum.with_index(imports) |> Enum.flat_map(&extract_import_func_name/1)
-    import_count = length(imports)
+  defp collect_func_names(imports, funcs, func_import_count) do
+    {import_entries, _} = Enum.map_reduce(imports, 0, &advance_func_import/2)
+    import_names = Enum.reject(import_entries, &is_nil/1)
 
     local_names =
-      Enum.with_index(funcs) |> Enum.flat_map(&extract_local_func_name(&1, import_count))
+      Enum.with_index(funcs) |> Enum.flat_map(&extract_local_func_name(&1, func_import_count))
 
     import_names ++ local_names
   end
 
-  defp extract_import_func_name({item, idx}) do
+  defp advance_func_import(item, func_idx) do
     case normalize_import(item) do
-      {_, _, "func", rest} ->
-        case Enum.find(rest, &match?({:id, _}, &1)) do
-          {:id, id} -> [{idx, id}]
-          _ -> []
-        end
-
-      _ ->
-        []
+      {_, _, "func", rest} -> named_func_import(Enum.find(rest, &match?({:id, _}, &1)), func_idx)
+      _ -> {nil, func_idx}
     end
   end
+
+  defp named_func_import({:id, id}, func_idx), do: {{func_idx, id}, func_idx + 1}
+  defp named_func_import(nil, func_idx), do: {nil, func_idx + 1}
 
   defp extract_local_func_name({[{:keyword, "func"}, {:id, id} | _], idx}, offset),
     do: [{offset + idx, id}]

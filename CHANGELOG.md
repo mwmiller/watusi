@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-08-21
+
+### Fixed
+
+- Inline `(param $x ...)` declarations combined with a type use now resolve to the correct local indices; previously, referencing such a parameter by identifier could emit an invalid binary.
+- Debug-name function indices now count only function imports, so names for locally defined functions are correct in the presence of table, memory, global, or tag imports.
+- Imported functions are named by their function index rather than their position among all imports; unnamed function imports occupy an index slot as required.
+- A name custom section is no longer emitted when there is nothing to name, and raw `binary`/`quote` module forms no longer receive one, matching the reference toolchain.
+
+### Added
+
+- Name-section parity suite (`mix test --include name_parity`) verifying `debug_names: true` output byte-for-byte against unstripped `wasm-tools parse` references.
+
 ## [0.6.2] - 2026-08-03
 
 ### Changed

@@ -10,7 +10,7 @@ Watusi provides a pure-Elixir pipeline for transforming human-readable WebAssemb
 - **High Performance**: Optimized lexer and encoder with compile-time code generation for maximum speed.
 - **Modern Standards**: Core 1.0 plus Bulk Memory, Fixed-width SIMD, Threads/Atomics, Sign-extension, Non-trapping float-to-int, Exception Handling, Garbage Collection, Reference-Types, and Function-References proposals.
 - **Developer Friendly**: Optional debug names and detailed identifier resolution.
-- **Spec Compliant**: Tested against the official spec vectors (4,868) with bit-for-bit parity to `wasm-tools`.
+- **Spec Compliant**: Tested against the official WebAssembly spec test suite with bit-for-bit parity to `wasm-tools`.
 
 ## Performance
 
@@ -88,7 +88,7 @@ wasm_with_names = Watusi.to_wasm(wat, debug_names: true)
 
 ## Testing
 
-Watusi is tested against the [bytecodealliance/wasm-tools](https://github.com/bytecodealliance/wasm-tools). The test suite compiles each `.wat` vector with `wasm-tools parse` (stripped with `wasm-tools strip --all`) and verifies bit-for-bit parity with Watusi's output, then validates generated binaries with `wasm-tools validate --features all`.
+Watusi is tested against [bytecodealliance/wasm-tools](https://github.com/bytecodealliance/wasm-tools). The test suite compiles each spec-suite `.wat` vector with `wasm-tools parse` (stripped with `wasm-tools strip --all`) and verifies bit-for-bit parity with Watusi's output, then validates generated binaries with `wasm-tools validate --features all`. Optional debug-name output is verified the same way via `mix test --include name_parity`.
 
-4,868 official spec vectors are included, covering core instructions and advanced extensions, with the full suite at `4868/4868` passing against the pinned `wasm-tools` reference. See `test/spec_vectors/README.md` for details.
+See `test/spec_vectors/README.md` for details.
 

@@ -2146,32 +2146,37 @@ defmodule Watusi.Encoder.Instructions do
         other -> other
       end
 
-    # Check if function uses a type reference to determine starting index
-    starting_idx = resolve_starting_local_idx(body, types, signatures)
+    {params_ts, locals_ts} =
+      Enum.reduce(body, {[], []}, fn
+        [{:keyword, "param"} | ts], {ps, ls} -> {ps ++ ts, ls}
+        [{:keyword, "local"} | ts], {ps, ls} -> {ps, ls ++ ts}
+        _, acc -> acc
+      end)
 
+    # Inline params name the leading locals starting at 0. Locals begin after
+    # every param: after the inline ones when present, otherwise after the
+    # params implied by the referenced type.
+    local_start =
+      if params_ts == [] do
+        resolve_type_param_count(body, types, signatures)
+      else
+        count_types(params_ts)
+      end
+
+    Map.merge(assign_ids(params_ts, 0), assign_ids(locals_ts, local_start))
+  end
+
+  defp assign_ids(ts, start) do
     {_, map} =
-      Enum.reduce(body, {starting_idx, %{}}, fn
-        [{:keyword, kind} | ts], {idx, acc} when kind in ["param", "local"] ->
-          # Each param/local declaration can have multiple items: IDs and types
-          # We need to count how many actual params/locals are declared
-          # For example: (param $x i32) declares 1 param, (param i32 i32) declares 2
-          {final_idx, final_acc} =
-            Enum.reduce(ts, {idx, acc}, fn
-              {:id, id}, {i, a} ->
-                # Assign current index to this ID, then increment
-                {i, Map.put(a, id, i)}
+      Enum.reduce(ts, {start, %{}}, fn
+        {:id, id}, {i, a} ->
+          {i, Map.put(a, id, i)}
 
-              {:keyword, _}, {i, a} ->
-                {i + 1, a}
+        {:keyword, _}, {i, a} ->
+          {i + 1, a}
 
-              t, {i, a} when is_list(t) ->
-                {i + 1, a}
-
-              _, state ->
-                state
-            end)
-
-          {final_idx, final_acc}
+        t, {i, a} when is_list(t) ->
+          {i + 1, a}
 
         _, state ->
           state
@@ -2180,7 +2185,19 @@ defmodule Watusi.Encoder.Instructions do
     map
   end
 
-  defp resolve_starting_local_idx(body, types, signatures) do
+  defp count_types(ts) do
+    {final_idx, _} =
+      Enum.reduce(ts, {0, %{}}, fn
+        {:id, _}, {i, a} -> {i, a}
+        {:keyword, _}, {i, a} -> {i + 1, a}
+        t, {i, a} when is_list(t) -> {i + 1, a}
+        _, state -> state
+      end)
+
+    final_idx
+  end
+
+  defp resolve_type_param_count(body, types, signatures) do
     case Enum.find(body, &match?([{:keyword, "type"}, _], &1)) do
       [{:keyword, "type"}, {:id, id}] ->
         type_item = Enum.find(types, &match?([{:keyword, "type"}, {:id, ^id} | _], &1))
